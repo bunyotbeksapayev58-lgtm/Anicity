@@ -15,7 +15,7 @@ export default async function Header() {
   return (
     <header className="topbar">
       <Link href="/" className="brand">
-        <Logo /> <span className="grad">Yozora</span>
+        <Logo /> <span className="grad">Anicity</span>
       </Link>
       <nav>
         <Link href="/">Bosh sahifa</Link>

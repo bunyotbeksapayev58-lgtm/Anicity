@@ -3,7 +3,7 @@ import ActionForm from '@/components/ActionForm';
 import Logo from '@/components/Logo';
 import { forgotPassword } from '@/app/actions/auth';
 
-export const metadata = { title: 'Parolni tiklash — Yozora' };
+export const metadata = { title: 'Parolni tiklash — Anicity' };
 
 export default function ForgotPage() {
   return (

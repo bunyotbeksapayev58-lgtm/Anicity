@@ -1,26 +1,26 @@
-# YOZORA — IMPLEMENTATION & STATUS REPORT
+# ANICITY — IMPLEMENTATION & STATUS REPORT
 
 **Holat:** Jonli ishga tushirilgan va to‘liq sinovdan o‘tgan (100% build, test va Vercel production pass)  
 **Sana:** 2026-11-02  
 **Loyiha katalogi:** `c:\Users\user\Desktop\yozora-app`  
-**Jonli Sayt URL:** [https://yozora-app.vercel.app](https://yozora-app.vercel.app)  
-**GitHub Repozitoriyasi:** [https://github.com/bunyotbeksapayev58-lgtm/Yozora](https://github.com/bunyotbeksapayev58-lgtm/Yozora)  
-**Oxirgi Git Commit:** `2a1abab`  
+**Jonli Sayt URL:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)  
+**GitHub Repozitoriyasi:** [https://github.com/bunyotbeksapayev58-lgtm/Anicity](https://github.com/bunyotbeksapayev58-lgtm/Anicity)  
 
 ---
 
 ## 1. Loyiha arxitekturasi va bajarilgan ishlar
 
 ### Phase 1 — Loyihani himoyalash va tekshirish
-- [x] To‘g‘ri Yozora ishchi maydoni aniqlandi (`c:\Users\user\Desktop\yozora-app`).
+- [x] To‘g‘ri loyiha ishchi maydoni aniqlandi (`c:\Users\user\Desktop\yozora-app`).
 - [x] Barcha manba kodlari, komponentlar va marshrutlar tekshirildi.
-- [x] Anizoom nomlari to‘liq **Yozora**ga o‘zgartirildi (sayt sarlavhalari, footer, logo, meta-teglar).
+- [x] Nom to‘liq **Anicity**ga o‘zgartirildi (sayt sarlavhalari, footer, logo, meta-teglar, paket nomi).
 - [x] Next.js eng so‘nggi xavfsiz versiyaga (`next@16.4.3`) yangilandi (barcha CVE zaifliklari 0 taga tushirildi).
 - [x] `middleware.js` yangi Next.js `proxy.js` konvensiyasiga muvaffaqiyatli ko‘chirildi.
-- [x] Mustaqil Git repozitoriyasi ishga tushirildi va birinchi checkpoint commit (`9c3574d`) yaratildi.
+- [x] Mustaqil Git repozitoriyasi ishga tushirildi.
 
 ### Phase 2 — Supabase loyihasi va migratsiyalar
 - [x] Supabase loyihasi ulandi: `https://lngeosburovsxotywbfw.supabase.co` (Region: `eu-north-1`).
+- [x] `public.site_settings` da sayt nomi `"Anicity"` ga yangilandi.
 - [x] Barcha 6 ta SQL migratsiya fayli ketma-ketlikda xatosiz tatbiq etildi:
   1. `001_core_schema.sql` — 16 ta asosiy jadval va cheklovlar.
   2. `002_indexes.sql` — Qidiruv (GIN, tsvector), janrlar, rollar va vaqt indekslari.
@@ -66,11 +66,11 @@
 - [x] **Ishlab chiqarish buildi (`npm run build`)**: Barcha 18 ta marshrut Turbopack orqali 0 xato bilan yig‘ildi.
 
 ### Phase 7 — GitHub
-- [x] Yangi GitHub repozitoriyasi yaratildi: `bunyotbeksapayev58-lgtm/Yozora`.
-- [x] Kodlar, migratsiyalar, testlar va hujjatlar commit qilinib, `main` branchiga push qilindi.
+- [x] GitHub repozitoriyasi nomi yangilandi: `bunyotbeksapayev58-lgtm/Anicity`.
+- [x] Kodlar, testlar va hujjatlar `main` branchiga push qilindi.
 
 ### Phase 8 & 9 — Vercel Jonli Deploy va Sinov
-- [x] Vercel loyihasi yaratildi: `yozora-app` (ID: `prj_GeymrumXoMuZpRIXyqnxFs647DRy`).
-- [x] Kerakli muhit o‘zgaruvchilari Vercel tizimida sozlandi (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`).
-- [x] Production deploy muvaffaqiyatli amalga oshirildi (Deployment ID: `dpl_BCq74iXo33oTKV1hR4cuVzdHWN4H`, Holati: `READY`).
-- [x] Jonli URL manzili tekshirildi va ishlayotgani tasdiqlandi: [https://yozora-app.vercel.app](https://yozora-app.vercel.app).
+- [x] Vercel loyihasi nomi yangilandi: `anicity` (ID: `prj_GeymrumXoMuZpRIXyqnxFs647DRy`).
+- [x] Yangi domen qo‘shildi va tasdiqlandi: `anicity-app.vercel.app`.
+- [x] Muhit o‘zgaruvchisi `NEXT_PUBLIC_SITE_URL` = `https://anicity-app.vercel.app` ga yangilandi.
+- [x] Jonli URL manzili tekshirildi va ishlayotgani tasdiqlandi: [https://anicity-app.vercel.app](https://anicity-app.vercel.app).

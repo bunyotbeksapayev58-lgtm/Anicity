@@ -16,7 +16,7 @@ import {
   isStaffRole,
 } from '../lib/roles.js';
 
-console.log('--- RUNNING YOZORA TEST SUITE ---\n');
+console.log('--- RUNNING ANICITY TEST SUITE ---\n');
 
 // 1. Google Drive validation tests
 console.log('1. Testing Google Drive URL resolution...');

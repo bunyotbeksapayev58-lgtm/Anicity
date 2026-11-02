@@ -1,5 +1,5 @@
 {
-  "name": "yozora",
+  "name": "anicity",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/yozora.test.mjs"
+    "test": "node tests/anicity.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

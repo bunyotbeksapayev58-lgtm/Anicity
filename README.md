@@ -1,6 +1,9 @@
-# Yozora
+# Anicity
 
-Anime tomosha platformasi. Next.js (App Router) + Supabase (Auth, Postgres, Storage). Vercel ga deploy qilinadi.
+Anime tomosha platformasi. Next.js (App Router) + Supabase (Auth, Postgres, Storage). Vercel ga deploy qilingan.
+
+- **Jonli sayt:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)
+- **GitHub:** [https://github.com/bunyotbeksapayev58-lgtm/Anicity](https://github.com/bunyotbeksapayev58-lgtm/Anicity)
 
 ## Ishga tushirish
 1. Supabase loyiha yarating va **`supabase/SUPABASE_SETUP.md`** dagi qadamlarni bajaring (SQL tartibi, owner, bucketlar).

@@ -4,7 +4,7 @@ import AdminAnimeForm from '@/components/AdminAnimeForm';
 import { deleteAnime } from '@/app/actions/admin';
 import { isAdminRole } from '@/lib/roles';
 
-export const metadata = { title: 'Admin — Yozora' };
+export const metadata = { title: 'Admin — Anicity' };
 
 export default async function AdminPage() {
   const supabase = await createClient();

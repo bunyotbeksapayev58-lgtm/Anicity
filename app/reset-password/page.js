@@ -2,7 +2,7 @@ import ActionForm from '@/components/ActionForm';
 import Logo from '@/components/Logo';
 import { resetPassword } from '@/app/actions/auth';
 
-export const metadata = { title: 'Yangi parol — Yozora' };
+export const metadata = { title: 'Yangi parol — Anicity' };
 
 export default function ResetPage() {
   return (

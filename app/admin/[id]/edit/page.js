@@ -6,7 +6,7 @@ import { updateAnime } from '@/app/actions/admin';
 import { isAdminRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Tahrirlash — Yozora' };
+export const metadata = { title: 'Tahrirlash — Anicity' };
 
 export default async function EditAnimePage({ params }) {
   const { id } = await params;

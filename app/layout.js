@@ -2,8 +2,8 @@ import './globals.css';
 import Header from '@/components/Header';
 
 export const metadata = {
-  title: 'Yozora',
-  description: 'Anime tomosha qiling — Yozora',
+  title: 'Anicity',
+  description: 'Anime tomosha qiling — Anicity',
 };
 
 export default function RootLayout({ children }) {
@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
       <body>
         <Header />
         <main>{children}</main>
-        <footer>© {new Date().getFullYear()} Yozora</footer>
+        <footer>© {new Date().getFullYear()} Anicity</footer>
       </body>
     </html>
   );

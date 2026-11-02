@@ -11,7 +11,7 @@ export async function generateMetadata({ params }) {
   const supabase = await createClient();
   const { data: anime } = await supabase.from('animes').select('title').eq('id', animeId).single();
   return {
-    title: anime ? `${anime.title} — ${num}-qism — Yozora` : 'Tomosha — Yozora',
+    title: anime ? `${anime.title} — ${num}-qism — Anicity` : 'Tomosha — Anicity',
   };
 }
 

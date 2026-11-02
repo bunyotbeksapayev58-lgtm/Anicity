@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Sevimlilar — Yozora' };
+export const metadata = { title: 'Sevimlilar — Anicity' };
 
 export default async function FavoritesPage() {
   const supabase = await createClient();
