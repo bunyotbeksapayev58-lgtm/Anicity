@@ -2,6 +2,7 @@
 
 **Sana:** 2026-11-02  
 **Holat:** Xavfsizlik talablariga 100% javob beradi (A+ daraja)  
+**Tahlil qilingan URL:** [https://yozora-app.vercel.app](https://yozora-app.vercel.app)  
 
 ---
 
@@ -9,8 +10,8 @@
 
 1. **Jadval darajasidagi himoya:**
    - 16 ta jadvalning barchasida `ROW LEVEL SECURITY` majburiy yoqilgan (`alter table ... enable row level security`).
-   - `anon` (tizimga kirmagan) foydalanuvchilar barcha jadvallardan to‘liq uzilgan (`revoke all on all tables from anon`). Sayt faqat autentifikatsiyalangan foydalanuvchilar bilan ishlaydi.
-   - `authenticated` foydalanuvchilar faqat o‘zlariga tegishli qatorlarni o‘qiy va o‘zgartira oladi (`(select auth.uid()) = user_id`).
+   - Ochiq katalog siyosatlari: Sayt mehmonlari (anonim foydalanuvchilar) faqat `is_published = true` bo‘lgan animelar, epizodlar, fasllar va bannerlarni o‘qiy oladi.
+   - Maxfiy foydalanuvchi ma'lumotlari (`favorites`, `watch_progress`, `watchlists`, `comments`, `reports`, `notifications`): faqat tizimga kirgan foydalanuvchilar o‘zlariga tegishli qatorlarni o‘qiy va o‘zgartira oladi (`(select auth.uid()) = user_id`).
 
 2. **Foydalanuvchi profili va rollar xavfsizligi:**
    - `profiles` jadvalida oddiy foydalanuvchi faqat `username`, `display_name`, `avatar_url`, va `bio` maydonlarini yangilay oladi (`column_privileges`).

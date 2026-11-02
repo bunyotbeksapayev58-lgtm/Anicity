@@ -1,10 +1,11 @@
 # YOZORA — IMPLEMENTATION & STATUS REPORT
 
-**Holat:** Tayyor va to‘liq sinovdan o‘tgan (100% build & test pass)  
+**Holat:** Jonli ishga tushirilgan va to‘liq sinovdan o‘tgan (100% build, test va Vercel production pass)  
 **Sana:** 2026-11-02  
 **Loyiha katalogi:** `c:\Users\user\Desktop\yozora-app`  
+**Jonli Sayt URL:** [https://yozora-app.vercel.app](https://yozora-app.vercel.app)  
 **GitHub Repozitoriyasi:** [https://github.com/bunyotbeksapayev58-lgtm/Yozora](https://github.com/bunyotbeksapayev58-lgtm/Yozora)  
-**Oxirgi Git Commit:** `d116de6` (`feat: complete Google Drive validation, watch actions, and automated test suite`)  
+**Oxirgi Git Commit:** `2a1abab`  
 
 ---
 
@@ -27,13 +28,15 @@
   4. `004_grants.sql` — `anon` va `authenticated` uchun minimal ruxsatlar, xavfsiz funksiyalar ro‘yxati.
   5. `005_rls_policies.sql` — 16 ta jadvalning barchasida Row Level Security (RLS) yoqildi va siyosatlar o‘rnatildi.
   6. `006_storage.sql` — 5 ta Storage bucket yaratildi va public/admin siyosatlari biriktirildi.
-- [x] `verify.sql` skriptidagi 13 ta tekshiruv 100% muvaffaqiyatli yakunlandi.
+- [x] Ochiq katalog siyosatlari: Sayt mehmonlari nashr qilingan animelar va epizodlarni ko‘rishi uchun `anon` foydalanuvchilariga SELECT huquqi berildi.
+- [x] `verify.sql` skriptidagi tekshiruvlar 100% muvaffaqiyatli yakunlandi.
 
 ### Phase 3 — Autentifikatsiya va xavfsizlik
 - [x] Supabase Auth integratsiyasi: Ro‘yxatdan o‘tish, Kirish, Chiqish, Parolni tiklash.
 - [x] `profiles` jadvalida rollar: `user`, `moderator`, `admin`, `owner`.
 - [x] Xavfsizlik qoidasi: Hech kim o‘ziga OWNER rolini o‘zi bera olmaydi; `bootstrap_owner()` faqat SQL Editor (postgres) dan ishlaydi.
 - [x] Barcha server amallari (`assertAdmin`, `requireUser`, `requireAdmin`) himoyalangan.
+- [x] Himoyalangan sahifalar (`/admin`, `/favorites`, `/history`) mehmonlar uchun avtomatik `/login?next=...` ga yo‘naltiriladi.
 - [x] `.env.local` to‘liq `.gitignore` qilingan va maxfiy kalitlar Git'ga chiqmaydi.
 
 ### Phase 4 — Ilova funksionalligi
@@ -45,8 +48,8 @@
   - Qismlar orasida "Oldingi" va "Keyingi" tugmalari.
   - Tashqi embedlar uchun "✓ Ko‘rildi deb belgilash" (Mark as watched) funksiyasi.
   - Yon panelda epizodlar navigatori va ko‘rilganlik belgisi (`✓`).
-- [x] **Sevimlilar sahifasi (`/favorites`)**: Foydalanuvchining shaxsiy sevimli animelari ro‘yxati.
-- [x] **Tarix sahifasi (`/history`)**: Tomosha qilingan qismlar, to‘xtagan daqiqasi va rivojlanish chizig‘i.
+- [x] **Sevimlilar sahifasi (`/favorites`)**: Foydalanuvchining shaxsiy sevimli animelari ro‘yxati (avtorizatsiya talab qiladi).
+- [x] **Tarix sahifasi (`/history`)**: Tomosha qilingan qismlar, to‘xtagan daqiqasi va rivojlanish chizig‘i (avtorizatsiya talab qiladi).
 - [x] **Admin panel (`/admin` va `/admin/[id]/edit`)**:
   - Yangi anime va qismlarni qo‘shish formasi.
   - Mavjud animelarni tahrirlash va o‘chirish (posterni Storage'dan avtomatik tozalash bilan).
@@ -62,32 +65,12 @@
 - [x] **Avtomatlashtirilgan testlar (`npm test`)**: 7 ta test to‘plami 100% muvaffaqiyatli o‘tdi.
 - [x] **Ishlab chiqarish buildi (`npm run build`)**: Barcha 18 ta marshrut Turbopack orqali 0 xato bilan yig‘ildi.
 
----
+### Phase 7 — GitHub
+- [x] Yangi GitHub repozitoriyasi yaratildi: `bunyotbeksapayev58-lgtm/Yozora`.
+- [x] Kodlar, migratsiyalar, testlar va hujjatlar commit qilinib, `main` branchiga push qilindi.
 
-## 2. Jadvallar va Saqlash (Storage)
-
-| Jadval | RLS Holati | Maqsadi |
-|---|---|---|
-| `profiles` | Yoqilgan | Foydalanuvchi ma'lumotlari va rollari |
-| `animes` | Yoqilgan | Anime katalogi |
-| `seasons` | Yoqilgan | Fasllar |
-| `episodes` | Yoqilgan | Epizodlar va video havolalari |
-| `episode_subtitles` | Yoqilgan | Subtitrlar |
-| `favorites` | Yoqilgan | Sevimlilar ro‘yxati |
-| `watch_progress` | Yoqilgan | Tomosha tarixi va to‘xtagan vaqti |
-| `watchlists` | Yoqilgan | Rejalashtirilgan / ko‘rilayotgan animelar |
-| `ratings` | Yoqilgan | 1–10 ballik baholar |
-| `comments` | Yoqilgan | Fikrlar va izohlar |
-| `reports` | Yoqilgan | Shikoyatlar |
-| `notifications` | Yoqilgan | Foydalanuvchi bildirishnomalari |
-| `site_settings` | Yoqilgan | Sayt sozlamalari |
-| `banners` | Yoqilgan | Bosh sahifa slayderi |
-| `announcements` | Yoqilgan | E'lonlar |
-| `admin_logs` | Yoqilgan | Xavfsiz xodimlar audit jurnali |
-
-### Storage Bucketlar (5 ta):
-1. `posters` (3 MB limit, rasmlar)
-2. `anime-banners` (5 MB limit, rasmlar)
-3. `episode-thumbnails` (2 MB limit, rasmlar)
-4. `profile-avatars` (2 MB limit, rasmlar)
-5. `site-assets` (5 MB limit, rasmlar va SVG)
+### Phase 8 & 9 — Vercel Jonli Deploy va Sinov
+- [x] Vercel loyihasi yaratildi: `yozora-app` (ID: `prj_GeymrumXoMuZpRIXyqnxFs647DRy`).
+- [x] Kerakli muhit o‘zgaruvchilari Vercel tizimida sozlandi (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`).
+- [x] Production deploy muvaffaqiyatli amalga oshirildi (Deployment ID: `dpl_BCq74iXo33oTKV1hR4cuVzdHWN4H`, Holati: `READY`).
+- [x] Jonli URL manzili tekshirildi va ishlayotgani tasdiqlandi: [https://yozora-app.vercel.app](https://yozora-app.vercel.app).
