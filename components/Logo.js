@@ -1,14 +1,26 @@
-export default function Logo({ size = 34 }) {
+export default function Logo({ size = 36 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>
-        <linearGradient id="anicity-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ff4d6d" />
-          <stop offset="1" stopColor="#7c5cff" />
+        <linearGradient id="anicity-brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#8A7BFF" />
+          <stop offset="100%" stopColor="#6C5CE7" />
         </linearGradient>
+        <linearGradient id="anicity-spark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00CEC9" />
+          <stop offset="100%" stopColor="#00B894" />
+        </linearGradient>
+        <filter id="anicity-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#6C5CE7" floodOpacity="0.5" />
+        </filter>
       </defs>
-      <rect width="64" height="64" rx="16" fill="url(#anicity-g)" />
-      <path d="M25 20l18 12-18 12z" fill="#fff" />
+      <rect width="48" height="48" rx="13" fill="url(#anicity-brand-grad)" filter="url(#anicity-glow)" />
+      {/* Modern Anime Play Triangle & A Insignia */}
+      <path
+        d="M19 14L33 24L19 34V14Z"
+        fill="#FFFFFF"
+      />
+      <circle cx="35" cy="13" r="3.5" fill="url(#anicity-spark-grad)" />
     </svg>
   );
 }

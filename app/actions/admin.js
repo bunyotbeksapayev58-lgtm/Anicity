@@ -60,6 +60,10 @@ export async function createAnime(prevState, formData) {
 
     const posterUrl = (await uploadPoster(supabase, formData.get('poster')))
       || (String(formData.get('posterUrl') || '').trim() || null);
+    const bannerUrl = String(formData.get('bannerUrl') || '').trim() || null;
+    const studio = String(formData.get('studio') || '').trim() || null;
+    const releaseDay = String(formData.get('releaseDay') || '').trim().toLowerCase() || null;
+    const fandubTeam = String(formData.get('fandubTeam') || 'Anicity Dub').trim();
 
     const { data: anime, error } = await supabase.from('animes').insert({
       title,
@@ -68,6 +72,10 @@ export async function createAnime(prevState, formData) {
       status: String(formData.get('status') || 'Tugallangan'),
       genres: String(formData.get('genres') || '').split(',').map((s) => s.trim()).filter(Boolean),
       poster_url: posterUrl,
+      banner_url: bannerUrl,
+      studio,
+      release_day: releaseDay,
+      fandub_team: fandubTeam,
     }).select('id').single();
     if (error) return { error: error.message };
 
@@ -96,15 +104,25 @@ export async function updateAnime(prevState, formData) {
 
     const newPoster = await uploadPoster(supabase, formData.get('poster'));
     const posterUrl = newPoster || (String(formData.get('posterUrl') || '').trim() || null);
+    const bannerUrl = String(formData.get('bannerUrl') || '').trim() || null;
+    const studio = String(formData.get('studio') || '').trim() || null;
+    const releaseDay = String(formData.get('releaseDay') || '').trim().toLowerCase() || null;
+    const fandubTeam = String(formData.get('fandubTeam') || 'Anicity Dub').trim();
 
-    const { error } = await supabase.from('animes').update({
+    const updatePayload = {
       title,
       description: String(formData.get('description') || '').trim(),
       year: Number(formData.get('year')) || new Date().getFullYear(),
       status: String(formData.get('status') || 'Tugallangan'),
       genres: String(formData.get('genres') || '').split(',').map((s) => s.trim()).filter(Boolean),
       poster_url: posterUrl,
-    }).eq('id', id);
+      banner_url: bannerUrl,
+      studio,
+      release_day: releaseDay,
+      fandub_team: fandubTeam,
+    };
+
+    const { error } = await supabase.from('animes').update(updatePayload).eq('id', id);
     if (error) return { error: error.message };
 
     // Yangi poster yuklangan bo'lsa, eskisini o'chiramiz
@@ -286,5 +304,35 @@ export async function toggleTrailerActive(formData) {
   const currentActive = formData.get('active') === 'true';
   await supabase.from('trailers').update({ is_active: !currentActive }).eq('id', id);
   revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function toggleUserVip(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const userId = String(formData.get('userId'));
+  const currentPlan = String(formData.get('currentPlan') || 'free');
+  const newPlan = currentPlan === 'vip' ? 'free' : 'vip';
+  const expiresAt = newPlan === 'vip' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+
+  await supabase.from('profiles').update({
+    subscription_plan: newPlan,
+    subscription_expires_at: expiresAt,
+  }).eq('id', userId);
+
+  revalidatePath('/admin');
+}
+
+export async function toggleUserSuspension(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const userId = String(formData.get('userId'));
+  const isSuspended = formData.get('isSuspended') === 'true';
+  const suspendedAt = isSuspended ? null : new Date().toISOString();
+
+  await supabase.from('profiles').update({
+    suspended_at: suspendedAt,
+  }).eq('id', userId);
+
   revalidatePath('/admin');
 }

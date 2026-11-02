@@ -4,13 +4,15 @@ import HeroBanner from '@/components/HeroBanner';
 import AnimeRow from '@/components/AnimeRow';
 import AnimeCard from '@/components/AnimeCard';
 import TrailersClips from '@/components/TrailersClips';
+import WeeklySchedule from '@/components/WeeklySchedule';
+import PremiumPromoBanner from '@/components/PremiumPromoBanner';
 
 export const dynamic = 'force-dynamic';
 
 const escapeLike = (s) => s.replace(/[\\%_]/g, '\\$&');
 
 export default async function HomePage({ searchParams }) {
-  const { q = '', g = '', sort = '' } = await searchParams;
+  const { q = '', g = '', sort = '' } = (await searchParams) || {};
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -44,7 +46,7 @@ export default async function HomePage({ searchParams }) {
   // 4. Fetch All Animes for catalog & sections
   let catalogQuery = supabase
     .from('animes')
-    .select('id, title, alt_title, description, year, status, genres, studio, poster_url, banner_url, rating_avg, view_count, created_at, episodes(id, number, title)')
+    .select('id, title, alt_title, description, year, status, genres, studio, poster_url, banner_url, rating_avg, view_count, created_at, release_day, fandub_team, episodes(id, number, title)')
     .eq('is_published', true);
 
   if (q) {
@@ -102,9 +104,9 @@ export default async function HomePage({ searchParams }) {
             </div>
           </div>
           <div className="continue-grid">
-            {continueList.map((r, i) => {
+            {continueList.map((r) => {
               const a = r.episodes.animes;
-              const pct = r.duration_sec ? Math.min(100, (r.position_sec / r.duration_sec) * 100) : 0;
+              const pct = r.duration_sec ? Math.min(100, Math.round((r.position_sec / r.duration_sec) * 100)) : 0;
               return (
                 <Link
                   key={`${a.id}-${r.episodes.number}`}
@@ -113,9 +115,9 @@ export default async function HomePage({ searchParams }) {
                 >
                   <div className="continue-thumb-wrap">
                     {a.poster_url ? (
-                      <img src={a.poster_url} alt={a.title} className="continue-thumb-img" />
+                      <img src={a.poster_url} alt={a.title} className="continue-img" />
                     ) : (
-                      <div className="continue-fallback">{a.title?.charAt(0)}</div>
+                      <div className="anime-poster-fallback" style={{ width: '100%', height: '100%' }}>{a.title}</div>
                     )}
                     <div className="continue-play-icon">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -140,43 +142,49 @@ export default async function HomePage({ searchParams }) {
       {/* 3. Section Rows (when not actively searching) */}
       {!isFiltering && (
         <>
-          {/* Trending */}
+          {/* Trending (Trenddagi Animelar) */}
           <AnimeRow
             title="Trenddagi Animelar"
             subtitle="Eng ko‘p tomosha qilinayotgan va muhokama qilinayotgan seriallar"
             icon="🔥"
             items={trendingList}
-            viewAllHref="/#catalog"
+            viewAllHref="/catalog?sort=popular"
           />
 
-          {/* Trailers & Clips */}
-          <TrailersClips trailers={trailersRaw || []} />
+          {/* Weekly Release Schedule (Haftalik Chiqish Jadvali) */}
+          <WeeklySchedule animes={allAnimes} />
 
-          {/* Recently Added */}
+          {/* Premium VIP Promo Banner (Anibla-style VIP CTA) */}
+          <PremiumPromoBanner />
+
+          {/* Recently Added (Yangi Qo‘shilgan Animelar) */}
           <AnimeRow
-            title="Yangi Qo‘shilgan Animelar"
-            subtitle="Platformaga yaqinda qo‘shilgan eng so‘nggi premyeralar"
+            title="Yangi Qo‘shilgan Premyeralar"
+            subtitle="Platformaga yaqinda qo‘shilgan eng so‘nggi qismlar"
             icon="✨"
             items={recentList}
-            viewAllHref="/#catalog"
+            viewAllHref="/catalog?sort=newest"
           />
 
-          {/* Top Rated */}
+          {/* Trailers & Clips (Treylerlar va lavhalar) */}
+          <TrailersClips trailers={trailersRaw || []} />
+
+          {/* Top Rated (Eng Yuqori Baholanganlar) */}
           <AnimeRow
             title="Eng Yuqori Baholanganlar"
             subtitle="Tomoshabinlar va tanqidchilar tomonidan yuqori baholangan durdonalar"
             icon="⭐"
             items={topRatedList}
-            viewAllHref="/#catalog"
+            viewAllHref="/catalog?sort=rating"
           />
 
-          {/* Recommended for You */}
+          {/* Recommended for You (Sizga Tavsiya Etiladi) */}
           <AnimeRow
             title="Sizga Tavsiya Etiladi"
             subtitle="Anicity muharrirlari tomonidan tanlab olingan sara filmlar"
             icon="🎯"
             items={recommendedList}
-            viewAllHref="/#catalog"
+            viewAllHref="/catalog"
           />
         </>
       )}
@@ -186,42 +194,30 @@ export default async function HomePage({ searchParams }) {
         <div className="catalog-header-bar">
           <div>
             <h2 className="catalog-heading">
-              {q ? `“${q}” bo‘yicha qidiruv natijalari` : g ? `“${g}” janridagi animelar` : 'To‘liq Anime Katalogi'}
+              {q ? `“${q}” bo‘yicha qidiruv natijalari` : g ? `“${g}” janridagi animelar` : 'Anime Katalogi'}
             </h2>
             <p className="catalog-subheading">
               {allAnimes.length} ta anime mavjud
             </p>
           </div>
 
-          {/* Inline Filter Tools */}
+          {/* Quick link to full catalog */}
           <div className="catalog-filters-group">
-            <form className="catalog-search-form">
-              {g && <input type="hidden" name="g" value={g} />}
-              <div className="search-input-wrapper">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Katalogdan qidirish..."
-                  className="catalog-search-field"
-                />
-              </div>
-            </form>
+            <Link href="/catalog" className="btn-hero-secondary">
+              Barcha Filtrlarni Ochish →
+            </Link>
           </div>
         </div>
 
         {/* Genre Filter Chips */}
         <div id="genres" className="genre-chips-container">
-          <Link href="/#catalog" className={`genre-chip ${!g ? 'active' : ''}`}>
+          <Link href="/catalog" className={`genre-chip ${!g ? 'active' : ''}`}>
             Barchasi
           </Link>
-          {allGenres.map((genre) => (
+          {allGenres.slice(0, 12).map((genre) => (
             <Link
               key={genre}
-              href={`/?g=${encodeURIComponent(genre)}#catalog`}
+              href={`/catalog?g=${encodeURIComponent(genre)}`}
               className={`genre-chip ${g === genre ? 'active' : ''}`}
             >
               {genre}
@@ -232,7 +228,7 @@ export default async function HomePage({ searchParams }) {
         {/* Grid display */}
         {allAnimes.length > 0 ? (
           <div className="anime-catalog-grid">
-            {allAnimes.map((anime, i) => (
+            {allAnimes.slice(0, 18).map((anime, i) => (
               <div key={anime.id} className="catalog-grid-item" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
                 <AnimeCard anime={anime} priority={i < 8} />
               </div>
@@ -241,13 +237,15 @@ export default async function HomePage({ searchParams }) {
         ) : (
           <div className="catalog-empty-state">
             <div className="empty-icon">🔍</div>
-            <h3 className="empty-title">Hech qanday anime topilmadi</h3>
+            <h3 className="empty-title">Hozircha animelar mavjud emas</h3>
             <p className="empty-desc">
-              Boshqa so‘z yoki boshqa janr tanlab ko‘ring.
+              Admin panel orqali yangi anime va epizodlar tez orada yuklanadi.
             </p>
-            <Link href="/" className="btn-hero-primary" style={{ marginTop: 16 }}>
-              Barcha animelarga qaytish
-            </Link>
+            {user && (
+              <Link href="/admin" className="btn-hero-primary" style={{ marginTop: 16 }}>
+                ⚡ Admin Panelga O‘tish
+              </Link>
+            )}
           </div>
         )}
       </section>
