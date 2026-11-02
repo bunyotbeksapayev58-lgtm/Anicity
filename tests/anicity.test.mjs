@@ -15,6 +15,7 @@ import {
   isAdminRole,
   isStaffRole,
 } from '../lib/roles.js';
+import { getSiteUrl } from '../lib/siteUrl.js';
 
 console.log('--- RUNNING ANICITY TEST SUITE ---\n');
 
@@ -145,6 +146,47 @@ const safePlaceholder = 'masalan: animefan123';
 assert.ok(!safePlaceholder.includes('sapayev'), 'Placeholder must not leak admin usernames');
 console.log('✔ Admin placeholder leak prevention passed');
 
+// 11. Testing getSiteUrl production safety and localhost prevention
+console.log('11. Testing getSiteUrl production safety...');
+const origNodeEnv = process.env.NODE_ENV;
+const origSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const origVercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+try {
+  // Production scenario with no env set
+  process.env.NODE_ENV = 'production';
+  delete process.env.NEXT_PUBLIC_SITE_URL;
+  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  delete process.env.VERCEL_URL;
+
+  const prodUrl = getSiteUrl();
+  assert.strictEqual(prodUrl, 'https://anicity-app.vercel.app', 'Production must default to https://anicity-app.vercel.app');
+  assert.ok(!prodUrl.includes('localhost'), 'Production URL must NEVER contain localhost');
+
+  // Production scenario with spoofed localhost header
+  const fakeHeaders = { 'x-forwarded-host': 'localhost:3000', 'x-forwarded-proto': 'http' };
+  const spoofResult = getSiteUrl(fakeHeaders);
+  assert.strictEqual(spoofResult, 'https://anicity-app.vercel.app', 'Must reject localhost spoof headers in production');
+
+  // Production scenario with valid custom domain header
+  const validHeaders = { 'x-forwarded-host': 'anicity-app.vercel.app', 'x-forwarded-proto': 'https' };
+  const validResult = getSiteUrl(validHeaders);
+  assert.strictEqual(validResult, 'https://anicity-app.vercel.app');
+
+  // Development scenario
+  process.env.NODE_ENV = 'development';
+  process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3000';
+  const devUrl = getSiteUrl();
+  assert.strictEqual(devUrl, 'http://localhost:3000', 'Development can use localhost');
+} finally {
+  process.env.NODE_ENV = origNodeEnv;
+  if (origSiteUrl !== undefined) process.env.NEXT_PUBLIC_SITE_URL = origSiteUrl;
+  else delete process.env.NEXT_PUBLIC_SITE_URL;
+  if (origVercelUrl !== undefined) process.env.VERCEL_PROJECT_PRODUCTION_URL = origVercelUrl;
+  else delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+}
+console.log('✔ getSiteUrl production safety passed');
+
 console.log('\n========================================');
-console.log('ALL 10 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 11 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');

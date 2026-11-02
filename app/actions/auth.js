@@ -1,11 +1,21 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, escapeLike } from '@/lib/supabase/admin';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 const LOGIN_ERR = 'Login yoki parol noto‘g‘ri';
-const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+async function resolveSiteUrl() {
+  try {
+    const h = await headers();
+    return getSiteUrl(h);
+  } catch {
+    return getSiteUrl();
+  }
+}
 
 export async function login(prevState, formData) {
   const input = String(formData.get('login') || '').trim();
@@ -58,13 +68,14 @@ export async function register(prevState, formData) {
   const next = String(formData.get('next') || '/');
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
+  const siteUrl = await resolveSiteUrl();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username },
-      emailRedirectTo: `${SITE_URL()}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+      emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`,
     },
   });
   if (error) return { error: error.message };
@@ -78,9 +89,10 @@ export async function register(prevState, formData) {
 
 export async function forgotPassword(prevState, formData) {
   const email = String(formData.get('email') || '').trim();
+  const siteUrl = await resolveSiteUrl();
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${SITE_URL()}/auth/callback?next=/reset-password`,
+    redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
   });
   // Email mavjudligini oshkor qilmaslik uchun har doim bir xil javob
   return { message: 'Agar bu email ro‘yxatda bo‘lsa, tiklash havolasi yuborildi.' };
