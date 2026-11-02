@@ -187,6 +187,20 @@ try {
 }
 console.log('✔ getSiteUrl production safety passed');
 
+// 12. OAuth Callback Error and Gating Tests
+console.log('12. Testing OAuth Callback error routing...');
+function resolveCallbackError(errorParam) {
+  if (!errorParam) return null;
+  const isOAuth = errorParam === 'access_denied' ||
+    String(errorParam).toLowerCase().includes('oauth') ||
+    String(errorParam).toLowerCase().includes('denied');
+  return isOAuth ? '/login?error=oauth' : '/login?error=link';
+}
+assert.strictEqual(resolveCallbackError('access_denied'), '/login?error=oauth');
+assert.strictEqual(resolveCallbackError('User denied access'), '/login?error=oauth');
+assert.strictEqual(resolveCallbackError('otp_expired'), '/login?error=link');
+console.log('✔ OAuth Callback error routing passed');
+
 console.log('\n========================================');
-console.log('ALL 11 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 12 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');

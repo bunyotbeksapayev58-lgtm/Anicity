@@ -38,6 +38,11 @@ export default async function LoginPage({ searchParams }) {
             Havola muddati tugagan yoki noto‘g‘ri. Iltimos, qaytadan urinib ko‘ring.
           </div>
         )}
+        {error === 'oauth' && (
+          <div className="err" style={{ marginBottom: 16, textAlign: 'center' }}>
+            Google orqali kirish bekor qilindi yoki xatolik yuz berdi. Iltimos, qaytadan urinib ko‘ring.
+          </div>
+        )}
 
         <GoogleSignInButton next={next} label="Google bilan kirish" />
 

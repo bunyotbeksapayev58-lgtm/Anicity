@@ -22,10 +22,13 @@ export async function GET(request) {
   // Origin'ni xavfsiz aniqlaymiz (x-forwarded headers yoki canonical production domain)
   const origin = getSiteUrl(request.headers);
 
-  // Supabase xato bilan qaytargan bo'lsa (masalan havola muddati tugagan)
+  // Supabase xato bilan qaytargan bo'lsa (masalan havola muddati tugagan yoki OAuth bekor qilingan)
   if (errorParam) {
     console.error('[Auth Callback] Provider error:', errorParam);
-    return NextResponse.redirect(new URL('/login?error=link', origin));
+    const isOAuth = url.searchParams.get('error') === 'access_denied' ||
+      String(errorParam).toLowerCase().includes('oauth') ||
+      String(errorParam).toLowerCase().includes('denied');
+    return NextResponse.redirect(new URL(isOAuth ? '/login?error=oauth' : '/login?error=link', origin));
   }
 
   // Qaytish yo'li: agar parolni tiklash bo'lsa /reset-password ga yo'naltiramiz

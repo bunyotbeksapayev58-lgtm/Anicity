@@ -27,11 +27,19 @@ export default function GoogleSignInButton({ next, label = 'Google bilan kirish'
       });
 
       if (oauthError) {
-        setError(oauthError.message);
+        let msg = oauthError.message;
+        if (msg.includes('provider is not enabled')) {
+          msg = 'Google bilan kirish Supabase sozlamalarida hali yoqilmagan. Iltimos, administratorga murojaat qiling.';
+        }
+        setError(msg);
         setLoading(false);
       }
     } catch (err) {
-      setError(err?.message || 'Google tizimiga ulanishda xatolik yuz berdi');
+      let msg = err?.message || 'Google tizimiga ulanishda xatolik yuz berdi';
+      if (msg.includes('provider is not enabled')) {
+        msg = 'Google bilan kirish Supabase sozlamalarida hali yoqilmagan. Iltimos, administratorga murojaat qiling.';
+      }
+      setError(msg);
       setLoading(false);
     }
   }
