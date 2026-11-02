@@ -146,3 +146,145 @@ export async function deleteAnime(formData) {
   revalidatePath('/');
   revalidatePath('/admin');
 }
+
+
+// --- BANNER BOSHQARUVI ---
+
+async function uploadBannerImage(supabase, file) {
+  if (!file || typeof file === 'string' || file.size === 0) return null;
+  if (file.size > 5 * 1024 * 1024) throw new Error('Banner rasmi 5 MB dan katta bo‘lmasin');
+  const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const { error } = await supabase.storage.from('anime-banners').upload(path, file, { contentType: file.type });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from('anime-banners').getPublicUrl(path).data.publicUrl;
+}
+
+export async function createBanner(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    await assertAdmin(supabase);
+
+    const title = String(formData.get('title') || '').trim();
+    if (!title) return { error: 'Banner sarlavhasi kiritilishi shart' };
+
+    const animeId = String(formData.get('anime_id') || '').trim() || null;
+    const uploadedImage = await uploadBannerImage(supabase, formData.get('image'));
+    const imageUrl = uploadedImage || (String(formData.get('imageUrl') || '').trim() || null);
+    if (!imageUrl) return { error: 'Banner rasmi (fayl yoki havola) kiritilishi shart' };
+
+    const linkUrl = String(formData.get('linkUrl') || '').trim() || (animeId ? `/anime/${animeId}` : null);
+    const subtitle = String(formData.get('subtitle') || '').trim();
+    const sortOrder = Number(formData.get('sort_order')) || 0;
+    const isActive = formData.get('is_active') === 'on' || formData.get('is_active') === 'true';
+
+    const { error } = await supabase.from('banners').insert({
+      title,
+      subtitle: subtitle || null,
+      image_url: imageUrl,
+      link_url: linkUrl,
+      anime_id: animeId,
+      sort_order: sortOrder,
+      is_active: isActive,
+    });
+
+    if (error) return { error: error.message };
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { message: `Banner “${title}” muvaffaqiyatli saqlandi ✔` };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+export async function deleteBanner(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+  await supabase.from('banners').delete().eq('id', id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function toggleBannerActive(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+  const currentActive = formData.get('active') === 'true';
+  await supabase.from('banners').update({ is_active: !currentActive }).eq('id', id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+// --- TRAILER VA CLIPS BOSHQARUVI ---
+
+async function uploadTrailerThumb(supabase, file) {
+  if (!file || typeof file === 'string' || file.size === 0) return null;
+  if (file.size > 3 * 1024 * 1024) throw new Error('Muqova rasmi 3 MB dan katta bo‘lmasin');
+  const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const { error } = await supabase.storage.from('episode-thumbnails').upload(path, file, { contentType: file.type });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from('episode-thumbnails').getPublicUrl(path).data.publicUrl;
+}
+
+export async function createTrailer(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    await assertAdmin(supabase);
+
+    const title = String(formData.get('title') || '').trim();
+    if (!title) return { error: 'Treyler nomi kiritilishi shart' };
+
+    const videoUrl = String(formData.get('video_url') || '').trim();
+    if (!videoUrl) return { error: 'Video havolasi kiritilishi shart (YouTube yoki to‘g‘ridan-to‘g‘ri havola)' };
+
+    const animeId = String(formData.get('anime_id') || '').trim() || null;
+    const uploadedThumb = await uploadTrailerThumb(supabase, formData.get('thumbnail'));
+    const thumbnailUrl = uploadedThumb || (String(formData.get('thumbnailUrl') || '').trim() || null);
+
+    const description = String(formData.get('description') || '').trim();
+    const durationText = String(formData.get('duration_text') || '').trim() || '02:00';
+    const clipType = String(formData.get('clip_type') || 'trailer');
+    const sortOrder = Number(formData.get('sort_order')) || 0;
+    const isActive = formData.get('is_active') === 'on' || formData.get('is_active') === 'true';
+
+    const { error } = await supabase.from('trailers').insert({
+      title,
+      description: description || null,
+      video_url: videoUrl,
+      thumbnail_url: thumbnailUrl,
+      duration_text: durationText,
+      clip_type: clipType,
+      anime_id: animeId,
+      sort_order: sortOrder,
+      is_active: isActive,
+    });
+
+    if (error) return { error: error.message };
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { message: `Treyler “${title}” qo‘shildi ✔` };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+export async function deleteTrailer(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+  await supabase.from('trailers').delete().eq('id', id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function toggleTrailerActive(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+  const currentActive = formData.get('active') === 'true';
+  await supabase.from('trailers').update({ is_active: !currentActive }).eq('id', id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
