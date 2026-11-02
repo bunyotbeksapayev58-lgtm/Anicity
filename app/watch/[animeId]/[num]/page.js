@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import Player from '@/components/Player';
@@ -19,6 +19,10 @@ export default async function WatchPage({ params }) {
   const { animeId, num } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(`/login?next=/watch/${animeId}/${num}`);
+  }
 
   const { data: anime } = await supabase
     .from('animes')

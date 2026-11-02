@@ -1,17 +1,18 @@
 'use client';
 import { useActionState } from 'react';
 
-export default function AuthForm({ action, mode }) {
+export default function AuthForm({ action, mode, next }) {
   const [state, formAction, pending] = useActionState(action, null);
   const isRegister = mode === 'register';
 
   return (
     <form action={formAction}>
+      <input type="hidden" name="next" value={next || ''} />
       {isRegister && (
         <div className="field">
           <label htmlFor="username">Username</label>
           <input id="username" name="username" required minLength={3} maxLength={20}
-            pattern="[A-Za-z0-9_]{3,20}" placeholder="masalan: sapayev1231" autoComplete="username" />
+            pattern="[A-Za-z0-9_]{3,20}" placeholder="masalan: animefan123" autoComplete="username" />
         </div>
       )}
       {isRegister ? (

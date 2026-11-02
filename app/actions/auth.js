@@ -29,9 +29,12 @@ export async function login(prevState, formData) {
     email = found.user.email;
   }
 
+  const next = String(formData.get('next') || '/');
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: LOGIN_ERR };
-  redirect('/');
+  redirect(safeNext);
 }
 
 export async function register(prevState, formData) {
@@ -52,13 +55,16 @@ export async function register(prevState, formData) {
     if (taken) return { error: 'Bu username band' };
   }
 
+  const next = String(formData.get('next') || '/');
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username },
-      emailRedirectTo: `${SITE_URL()}/auth/callback?next=/`,
+      emailRedirectTo: `${SITE_URL()}/auth/callback?next=${encodeURIComponent(safeNext)}`,
     },
   });
   if (error) return { error: error.message };
@@ -67,7 +73,7 @@ export async function register(prevState, formData) {
   if (!data.session) {
     return { message: 'Emailingizga tasdiqlash xati yuborildi. Tasdiqlab, keyin kiring.' };
   }
-  redirect('/');
+  redirect(safeNext);
 }
 
 export async function forgotPassword(prevState, formData) {

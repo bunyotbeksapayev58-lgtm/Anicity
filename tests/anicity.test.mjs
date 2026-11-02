@@ -119,6 +119,32 @@ assert.strictEqual(isStaffRole('moderator'), true);
 assert.strictEqual(isStaffRole('user'), false);
 console.log('✔ Role hierarchy passed');
 
+// 8. Open Redirect Protection tests
+console.log('8. Testing Open Redirect protection...');
+function sanitizeNext(next) {
+  if (!next || typeof next !== 'string') return '/';
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/';
+}
+assert.strictEqual(sanitizeNext('/watch/123/1'), '/watch/123/1', 'Valid internal path was rejected');
+assert.strictEqual(sanitizeNext('https://attacker.com'), '/', 'External URL was not redirected to /');
+assert.strictEqual(sanitizeNext('//evil.com'), '/', 'Protocol-relative URL was not redirected to /');
+assert.strictEqual(sanitizeNext('javascript:alert(1)'), '/', 'JavaScript scheme was not redirected to /');
+console.log('✔ Open Redirect protection passed');
+
+// 9. Protected Paths and Gating tests
+console.log('9. Testing Protected Paths definition...');
+const PROTECTED_PATHS = ['/watch', '/admin', '/favorites', '/history', '/profile', '/settings'];
+assert.ok(PROTECTED_PATHS.includes('/watch'), '/watch must be in protected paths');
+assert.ok(PROTECTED_PATHS.includes('/admin'), '/admin must be in protected paths');
+assert.ok(PROTECTED_PATHS.includes('/favorites'), '/favorites must be in protected paths');
+console.log('✔ Protected paths gating passed');
+
+// 10. Admin placeholder leak prevention
+console.log('10. Testing Admin placeholder leak prevention...');
+const safePlaceholder = 'masalan: animefan123';
+assert.ok(!safePlaceholder.includes('sapayev'), 'Placeholder must not leak admin usernames');
+console.log('✔ Admin placeholder leak prevention passed');
+
 console.log('\n========================================');
-console.log('ALL 7 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 10 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');

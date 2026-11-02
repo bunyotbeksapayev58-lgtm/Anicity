@@ -48,10 +48,10 @@ export default async function AnimePage({ params }) {
           </div>
           <p className="desc">{anime.description}</p>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             {episodes[0] && (
-              <Link className="btn" href={`/watch/${id}/${(resume ?? episodes[0]).number}`}>
-                ▶ {resume ? 'Davom ettirish' : 'Tomosha qilish'}
+              <Link className="btn" href={user ? `/watch/${id}/${(resume ?? episodes[0]).number}` : `/login?next=/watch/${id}/${(resume ?? episodes[0]).number}`}>
+                ▶ {user ? (resume ? 'Davom ettirish' : 'Tomosha qilish') : 'Tomosha qilish'}
               </Link>
             )}
             {user ? (
@@ -66,15 +66,21 @@ export default async function AnimePage({ params }) {
               </Link>
             )}
           </div>
+          {!user && (
+            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+              💡 Filmni tomosha qilish uchun hisobingizga kiring yoki ro‘yxatdan o‘ting.
+            </p>
+          )}
 
           <h3 style={{ fontSize: 16, marginTop: 26 }}>Qismlar</h3>
           <div className="eps">
             {episodes.map((e) => {
               const p = progMap.get(e.id);
+              const href = user ? `/watch/${id}/${e.number}` : `/login?next=/watch/${id}/${e.number}`;
               return (
-                <Link key={e.id} href={`/watch/${id}/${e.number}`}
+                <Link key={e.id} href={href}
                   className={p?.completed ? 'done' : ''}>
-                  {e.title || `${e.number}-qism`}
+                  {e.title || `${e.number}-qism`}{!user ? ' 🔒' : ''}
                 </Link>
               );
             })}
