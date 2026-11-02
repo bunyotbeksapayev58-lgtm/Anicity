@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/anicity.test.mjs"
+    "test": "node tests/anicity.test.mjs && node tests/admin_live_e2e.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
