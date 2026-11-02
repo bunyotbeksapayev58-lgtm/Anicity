@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/auth'];
+const PROTECTED_PATHS = ['/admin', '/favorites', '/history', '/profile', '/settings'];
+const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export async function proxy(request) {
   let response = NextResponse.next({ request });
@@ -30,13 +31,18 @@ export async function proxy(request) {
   // API o'zi 401/403 JSON qaytaradi, login sahifasiga yo'naltirmaymiz
   if (path.startsWith('/api')) return response;
 
-  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'));
-  if (!user && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  const isProtected = PROTECTED_PATHS.some((p) => path === p || path.startsWith(p + '/'));
+  if (!user && isProtected) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('next', path);
+    return NextResponse.redirect(loginUrl);
   }
-  if (user && (path === '/login' || path === '/register')) {
+
+  const isAuthPage = AUTH_PAGES.some((p) => path === p || path.startsWith(p + '/'));
+  if (user && isAuthPage) {
     return NextResponse.redirect(new URL('/', request.url));
   }
+
   return response;
 }
 

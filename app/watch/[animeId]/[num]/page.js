@@ -52,7 +52,7 @@ export default async function WatchPage({ params }) {
             {isDirectVideo ? (
               <Player
                 src={ep.video_url}
-                userId={user.id}
+                userId={user?.id}
                 animeId={animeId}
                 episodeId={ep.id}
                 startAt={saved && !saved.completed ? saved.position_sec : 0}
@@ -79,14 +79,16 @@ export default async function WatchPage({ params }) {
             </div>
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <form action={toggleEpisodeCompleted}>
-                <input type="hidden" name="animeId" value={animeId} />
-                <input type="hidden" name="episodeId" value={ep.id} />
-                <input type="hidden" name="completed" value={String(isCompleted)} />
-                <button className={`btn sm ${isCompleted ? 'danger' : 'ghost'}`}>
-                  {isCompleted ? '✓ Ko‘rilgan (Bekor qilish)' : '✓ Ko‘rildi deb belgilash'}
-                </button>
-              </form>
+              {user && (
+                <form action={toggleEpisodeCompleted}>
+                  <input type="hidden" name="animeId" value={animeId} />
+                  <input type="hidden" name="episodeId" value={ep.id} />
+                  <input type="hidden" name="completed" value={String(isCompleted)} />
+                  <button className={`btn sm ${isCompleted ? 'danger' : 'ghost'}`}>
+                    {isCompleted ? '✓ Ko‘rilgan (Bekor qilish)' : '✓ Ko‘rildi deb belgilash'}
+                  </button>
+                </form>
+              )}
 
               {prev && (
                 <Link className="btn ghost sm" href={`/watch/${animeId}/${prev.number}`}>

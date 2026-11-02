@@ -19,8 +19,9 @@ export default async function AnimePage({ params }) {
 
   const episodes = [...anime.episodes].sort((a, b) => a.number - b.number);
 
-  const { data: fav } = await supabase
-    .from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', id).maybeSingle();
+  const fav = user
+    ? (await supabase.from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', id).maybeSingle()).data
+    : null;
   const isFav = !!fav;
 
   const { data: progress } = await supabase
@@ -53,11 +54,17 @@ export default async function AnimePage({ params }) {
                 ▶ {resume ? 'Davom ettirish' : 'Tomosha qilish'}
               </Link>
             )}
-            <form action={toggleFavorite}>
-              <input type="hidden" name="animeId" value={id} />
-              <input type="hidden" name="isFav" value={String(isFav)} />
-              <button className="btn ghost">{isFav ? '♥ Sevimlilardan olib tashlash' : '♡ Sevimlilarga qo‘shish'}</button>
-            </form>
+            {user ? (
+              <form action={toggleFavorite}>
+                <input type="hidden" name="animeId" value={id} />
+                <input type="hidden" name="isFav" value={String(isFav)} />
+                <button className="btn ghost">{isFav ? '♥ Sevimlilardan olib tashlash' : '♡ Sevimlilarga qo‘shish'}</button>
+              </form>
+            ) : (
+              <Link href={`/login?next=/anime/${id}`} className="btn ghost">
+                ♡ Sevimlilarga qo‘shish
+              </Link>
+            )}
           </div>
 
           <h3 style={{ fontSize: 16, marginTop: 26 }}>Qismlar</h3>

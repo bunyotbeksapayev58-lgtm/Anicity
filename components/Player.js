@@ -22,7 +22,7 @@ export default function Player({ src, userId, animeId, episodeId, startAt = 0, n
 
   async function save({ force = false, completed = false } = {}) {
     const v = videoRef.current;
-    if (!v || !v.duration || !supabase.current) return;
+    if (!v || !v.duration || !supabase.current || !userId) return;
     const now = Date.now();
     if (!force && now - lastSave.current < 5000) return;
     lastSave.current = now;
