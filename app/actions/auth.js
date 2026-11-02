@@ -15,9 +15,12 @@ export async function login(prevState, formData) {
   const supabase = await createClient();
   let email = input;
 
-  // Username kiritilgan bo'lsa, emailni serverning o'zida topamiz (ochiq funksiya yo'q)
+  // Username kiritilgan bo'lsa, emailni serverning o'zida topamiz
   if (!input.includes('@')) {
     const admin = createAdminClient();
+    if (!admin) {
+      return { error: 'Username orqali kirish server kalitini talab qiladi. Iltimos, email manzilingiz bilan kiring' };
+    }
     const { data: profile } = await admin
       .from('profiles').select('id').ilike('username', escapeLike(input)).maybeSingle();
     if (!profile) return { error: LOGIN_ERR };
@@ -41,11 +44,13 @@ export async function register(prevState, formData) {
   }
   if (password.length < 6) return { error: 'Parol kamida 6 ta belgi bo‘lsin' };
 
-  // Username band emasligini oldindan tekshiramiz (aniq xabar uchun)
+  // Username band emasligini oldindan tekshiramiz (agar admin client mavjud bo'lsa)
   const admin = createAdminClient();
-  const { data: taken } = await admin
-    .from('profiles').select('id').ilike('username', escapeLike(username)).maybeSingle();
-  if (taken) return { error: 'Bu username band' };
+  if (admin) {
+    const { data: taken } = await admin
+      .from('profiles').select('id').ilike('username', escapeLike(username)).maybeSingle();
+    if (taken) return { error: 'Bu username band' };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
