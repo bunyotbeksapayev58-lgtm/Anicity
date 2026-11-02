@@ -75,7 +75,7 @@ export default async function HomePage({ searchParams }) {
   const trendingList = [...allAnimes].sort((a, b) => (Number(b.view_count) || 0) - (Number(a.view_count) || 0));
   const topRatedList = [...allAnimes].sort((a, b) => (Number(b.rating_avg) || 0) - (Number(a.rating_avg) || 0));
   const recentList = [...allAnimes].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const recommendedList = [...allAnimes].sort(() => 0.5 - Math.random());
+  const recommendedList = [...allAnimes].sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
 
   const isFiltering = Boolean(q || g);
   const fallbackAnime = allAnimes[0] || null;

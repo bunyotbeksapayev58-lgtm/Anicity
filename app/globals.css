@@ -1952,6 +1952,217 @@ input:focus, select:focus, textarea:focus {
   gap: 8px;
 }
 
+/* Subtabs nav inside Admin Anime Section */
+.admin-subtabs-nav {
+  display: flex;
+  gap: 10px;
+  background: var(--bg-surface-elevated);
+  padding: 8px;
+  border-radius: var(--r-md);
+  margin-bottom: 24px;
+  border: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.subtab-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.subtab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.subtab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.35);
+}
+
+/* Alerts */
+.admin-alert-success {
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  color: #2ecc71;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.admin-alert-error {
+  background: rgba(255, 77, 109, 0.15);
+  border: 1px solid rgba(255, 77, 109, 0.4);
+  color: #ff4d6d;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+/* Genres Chips */
+.genres-chip-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.genre-chip-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.genre-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.genre-chip-btn.active {
+  background: rgba(108, 92, 231, 0.25);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Previews */
+.preview-container {
+  position: relative;
+  display: inline-block;
+  margin-top: 8px;
+}
+.preview-img {
+  border-radius: 8px;
+  border: 1px solid var(--border-medium);
+  object-fit: cover;
+  display: block;
+}
+.preview-img.poster {
+  width: 90px;
+  height: 120px;
+}
+.preview-img.banner {
+  width: 180px;
+  height: 90px;
+}
+.preview-img.trailer {
+  width: 140px;
+  height: 80px;
+}
+.btn-clear-preview {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ff4d6d;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Checkbox Toggle */
+.checkbox-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.checkbox-toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Decoupled info banner */
+.decoupled-info-banner {
+  background: rgba(108, 92, 231, 0.1);
+  border: 1px solid rgba(108, 92, 231, 0.3);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #c7c5ff;
+  line-height: 1.5;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 18px;
+}
+
+/* Episode manager selector card */
+.episode-manager-selector-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  padding: 18px 24px;
+}
+.anime-picker-select {
+  width: 100%;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.selected-anime-badge-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-surface-elevated);
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+.selected-anime-thumb {
+  width: 36px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.warning-banner-box {
+  background: rgba(243, 156, 18, 0.15);
+  border: 1px solid rgba(243, 156, 18, 0.4);
+  color: #f39c12;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.badge-quality {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+}
+.badge-published {
+  color: #2ecc71;
+  font-weight: 600;
+}
+.badge-draft {
+  color: #f39c12;
+  font-weight: 600;
+}
+.input-error {
+  border-color: #ff4d6d !important;
+}
+
 /* ============================================================================
    WATCH PAGE STYLES
    ============================================================================ */

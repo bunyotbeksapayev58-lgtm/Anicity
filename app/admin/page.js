@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import AdminAnimeForm from '@/components/AdminAnimeForm';
+import AdminAnimeSection from '@/components/AdminAnimeSection';
 import AdminBannerForm from '@/components/AdminBannerForm';
 import AdminTrailerForm from '@/components/AdminTrailerForm';
 import {
-  deleteAnime,
   deleteBanner,
   toggleBannerActive,
   deleteTrailer,
@@ -30,7 +29,10 @@ const DAYS_MAP = {
 };
 
 export default async function AdminPage({ searchParams }) {
-  const { tab = 'dashboard' } = (await searchParams) || {};
+  const resolvedSearchParams = (await searchParams) || {};
+  const tab = resolvedSearchParams.tab || 'dashboard';
+  const targetAnimeId = resolvedSearchParams.animeId || null;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/admin');
@@ -38,10 +40,13 @@ export default async function AdminPage({ searchParams }) {
   const { data: profile } = await supabase.from('profiles').select('role, username').eq('id', user.id).single();
   if (!isAdminRole(profile?.role)) redirect('/');
 
-  // 1. Fetch Animes
+  const currentUsername = profile?.username || user?.email?.split('@')[0] || 'Admin';
+  const currentRole = (profile?.role || 'admin').toUpperCase();
+
+  // 1. Fetch Animes with episodes
   const { data: animesRaw } = await supabase
     .from('animes')
-    .select('id, title, year, poster_url, status, view_count, rating_avg, release_day, fandub_team, episodes(id, number, title)')
+    .select('id, title, alt_title, year, poster_url, banner_url, status, view_count, rating_avg, release_day, fandub_team, age_rating, is_featured, is_published, episodes(id, season_number, number, title, video_url, thumbnail_url, is_published, description, quality)')
     .order('created_at', { ascending: false });
   const animes = animesRaw || [];
 
@@ -69,10 +74,10 @@ export default async function AdminPage({ searchParams }) {
 
   // Stats calculation
   const totalAnimes = animes.length;
-  const totalEpisodes = animes.reduce((acc, a) => acc + (a.episodes?.length || 0), 0);
+  const totalEpisodes = animes.reduce((acc, a) => acc + (Array.isArray(a.episodes) ? a.episodes.length : 0), 0);
   const totalViews = animes.reduce((acc, a) => acc + (Number(a.view_count) || 0), 0);
   const totalUsers = users.length;
-  const totalVipUsers = users.filter((u) => u.subscription_plan === 'vip').length;
+  const totalVipUsers = users.filter((u) => u?.subscription_plan === 'vip').length;
 
   return (
     <div className="admin-page-container">
@@ -83,7 +88,7 @@ export default async function AdminPage({ searchParams }) {
             ⚡ Anicity <span className="grad">Admin Panel</span>
           </h1>
           <p className="admin-subtitle">
-            Anibla darajasidagi to‘liq streaming boshqaruv tizimi • Kirgan foydalanuvchi: <b>{profile.username}</b> ({profile.role.toUpperCase()})
+            Anibla darajasidagi to‘liq streaming boshqaruv tizimi • Kirgan admin: <b>{currentUsername}</b> ({currentRole})
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -103,6 +108,9 @@ export default async function AdminPage({ searchParams }) {
         </Link>
         <Link href="/admin?tab=animes" className={`admin-tab-btn ${tab === 'animes' ? 'active' : ''}`}>
           🎬 Animelar ({totalAnimes})
+        </Link>
+        <Link href="/admin?tab=episodes" className={`admin-tab-btn ${tab === 'episodes' ? 'active' : ''}`}>
+          📺 Qismlar ({totalEpisodes})
         </Link>
         <Link href="/admin?tab=schedule" className={`admin-tab-btn ${tab === 'schedule' ? 'active' : ''}`}>
           📅 Chiqish Jadvali
@@ -193,7 +201,7 @@ export default async function AdminPage({ searchParams }) {
                         </div>
                         <div className="admin-info">
                           <b>{a.title}</b>
-                          <p>{a.episodes?.length || 0} qism • {a.view_count || 0} ko‘rilgan</p>
+                          <p>{Array.isArray(a.episodes) ? a.episodes.length : 0} qism • {a.view_count || 0} ko‘rilgan</p>
                         </div>
                         <Link href={`/admin/${a.id}/edit`} className="btn ghost sm">
                           Tahrirlash
@@ -217,7 +225,10 @@ export default async function AdminPage({ searchParams }) {
               <h2 className="admin-pane-title">⚡ Tezkor Harakatlar</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
                 <Link href="/admin?tab=animes" className="btn primary">
-                  ➕ Yangi Anime va Qismlar Yuklash
+                  ➕ Yangi Anime Yuklash (1-bosqich)
+                </Link>
+                <Link href="/admin?tab=episodes" className="btn ghost">
+                  📺 Qismlar Boshqaruvi (2-bosqich)
                 </Link>
                 <Link href="/admin?tab=schedule" className="btn ghost">
                   📅 Haftalik Chiqish Jadvalini Sozlash
@@ -228,9 +239,6 @@ export default async function AdminPage({ searchParams }) {
                 <Link href="/admin?tab=trailers" className="btn ghost">
                   🎞️ Treyler va Premyeralar Qo‘shish
                 </Link>
-                <Link href="/admin?tab=telegram" className="btn ghost">
-                  📢 Telegram Kanalga E’lon Tayyorlash
-                </Link>
               </div>
             </div>
           </div>
@@ -239,79 +247,27 @@ export default async function AdminPage({ searchParams }) {
 
       {/* ================= TAB 2: ANIMES ================= */}
       {tab === 'animes' && (
-        <div className="admin-grid-layout">
-          <div className="card admin-pane">
-            <h2 className="admin-pane-title">➕ Yangi Anime Yuklash</h2>
-            <p className="hint">Google Drive ulashish havolalari yoki to‘g‘ridan-to‘g‘ri MP4 videolarni kiriting.</p>
-            <AdminAnimeForm />
-          </div>
-
-          <div className="card admin-pane">
-            <h2 className="admin-pane-title">📚 Yuklangan Animelar ({animes.length})</h2>
-            {animes.length ? (
-              <div className="admin-items-list">
-                {animes.map((a) => (
-                  <div className="li-admin" key={a.id}>
-                    <div className="admin-thumb">
-                      {a.poster_url ? (
-                        <img src={a.poster_url} alt="" />
-                      ) : (
-                        <div className="thumb-fallback">{a.title.charAt(0)}</div>
-                      )}
-                    </div>
-                    <div className="admin-info">
-                      <b>{a.title}</b>
-                      <p>
-                        {a.year} • {a.status} • {a.episodes?.length || 0} ta qism • {a.release_day ? `📅 ${DAYS_MAP[a.release_day] || a.release_day}` : 'Jadvalsiz'}
-                      </p>
-                    </div>
-                    <div className="admin-actions">
-                      <Link href={`/anime/${a.id}`} className="btn ghost sm" target="_blank" title="Ko‘rish">
-                        👁️
-                      </Link>
-                      <Link href={`/admin/${a.id}/edit`} className="btn ghost sm" title="Tahrirlash">
-                        ✏️
-                      </Link>
-                      <form action={deleteAnime}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <button
-                          className="btn danger sm"
-                          onClick={(e) => {
-                            if (!confirm(`“${a.title}” animeni va uning barcha qismlarini o‘chirishni tasdiqlaysizmi?`)) {
-                              e.preventDefault();
-                            }
-                          }}
-                          title="O‘chirish"
-                        >
-                          🗑️
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)' }}>
-                Bazada hech qanday anime yo‘q. Chapdagi forma orqali birinchi animeni yuklang.
-              </div>
-            )}
-          </div>
-        </div>
+        <AdminAnimeSection animes={animes} initialSubTab="form" initialAnimeId={targetAnimeId} />
       )}
 
-      {/* ================= TAB 3: SCHEDULE ================= */}
+      {/* ================= TAB 3: EPISODES ================= */}
+      {tab === 'episodes' && (
+        <AdminAnimeSection animes={animes} initialSubTab="episodes" initialAnimeId={targetAnimeId} />
+      )}
+
+      {/* ================= TAB 4: SCHEDULE ================= */}
       {tab === 'schedule' && (
         <div className="admin-schedule-view">
           <div className="card admin-pane" style={{ marginBottom: 20 }}>
             <h2 className="admin-pane-title">📅 Haftalik Chiqish Jadvali Boshqaruvi</h2>
             <p className="hint">
-              Har bir anime tahrirlash sahifasida yoki yangi anime qo‘shishda <b>Haftalik Chiqish Kuni</b> (Dushanba-Yakshanba) etib belgilansa, u avtomatik ravishda bosh sahifadagi jadval taqvimida chiqadi.
+              Har bir anime ma’lumotlarida <b>Haftalik Chiqish Kuni</b> (Dushanba-Yakshanba) etib belgilansa, u avtomatik ravishda bosh sahifadagi jadval taqvimida chiqadi.
             </p>
           </div>
 
           <div className="admin-schedule-days-grid">
             {Object.entries(DAYS_MAP).map(([key, name]) => {
-              const dayAnimes = animes.filter((a) => a.release_day?.toLowerCase() === key);
+              const dayAnimes = animes.filter((a) => a.release_day && a.release_day.toLowerCase() === key);
 
               return (
                 <div key={key} className="card admin-pane day-schedule-box">
@@ -327,7 +283,7 @@ export default async function AdminPage({ searchParams }) {
                           <img src={a.poster_url || '/placeholder.jpg'} alt="" className="day-item-thumb" />
                           <div className="day-item-meta">
                             <b>{a.title}</b>
-                            <span>{a.fandub_team || 'Anicity Dub'} • {a.episodes?.length || 0} qism</span>
+                            <span>{a.fandub_team || 'Anicity Dub'} • {Array.isArray(a.episodes) ? a.episodes.length : 0} qism</span>
                           </div>
                           <Link href={`/admin/${a.id}/edit`} className="btn ghost sm">
                             ✏️
@@ -345,12 +301,12 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 4: BANNERS ================= */}
+      {/* ================= TAB 5: BANNERS ================= */}
       {tab === 'banners' && (
         <div className="admin-grid-layout">
           <div className="card admin-pane">
             <h2 className="admin-pane-title">➕ Yangi Hero Banner Qo‘shish</h2>
-            <p className="hint">Bosh sahifaning eng yuqori qismidagi katta slayd uchun.</p>
+            <p className="hint">Bosh sahifaning eng yuqori qismidagi katta slayd uchun kompyuterdan rasm yuklang.</p>
             <AdminBannerForm animes={animes} />
           </div>
 
@@ -398,7 +354,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 5: TRAILERS ================= */}
+      {/* ================= TAB 6: TRAILERS ================= */}
       {tab === 'trailers' && (
         <div className="admin-grid-layout">
           <div className="card admin-pane">
@@ -451,7 +407,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 6: USERS ================= */}
+      {/* ================= TAB 7: USERS ================= */}
       {tab === 'users' && (
         <div className="admin-users-view">
           <div className="card admin-pane">
@@ -471,15 +427,16 @@ export default async function AdminPage({ searchParams }) {
                   {users.map((u) => {
                     const isVipUser = u.subscription_plan === 'vip';
                     const isSuspended = Boolean(u.suspended_at);
+                    const safeDate = u.created_at ? String(u.created_at).slice(0, 10) : '—';
 
                     return (
                       <tr key={u.id}>
                         <td>
-                          <b>@{u.username}</b>
+                          <b>@{u.username || 'noma’lum'}</b>
                           {u.display_name && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{u.display_name}</div>}
                         </td>
                         <td>
-                          <span className={`badge-role ${u.role}`}>{u.role.toUpperCase()}</span>
+                          <span className={`badge-role ${u.role || 'user'}`}>{(u.role || 'user').toUpperCase()}</span>
                         </td>
                         <td>
                           {isVipUser ? (
@@ -488,9 +445,7 @@ export default async function AdminPage({ searchParams }) {
                             <span className="badge-free-pill">Oddiy</span>
                           )}
                         </td>
-                        <td>
-                          {u.created_at ? new Date(u.created_at).toLocaleDateString('uz-UZ') : '—'}
-                        </td>
+                        <td>{safeDate}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <form action={toggleUserVip}>
@@ -519,7 +474,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 7: TELEGRAM ================= */}
+      {/* ================= TAB 8: TELEGRAM ================= */}
       {tab === 'telegram' && (
         <div className="admin-telegram-view">
           <div className="card admin-pane" style={{ maxWidth: 800, margin: '0 auto' }}>
