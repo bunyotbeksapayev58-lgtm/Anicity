@@ -1,0 +1,148 @@
+:root{--bg:#0b0d12;--panel:#151923;--panel2:#1d2330;--line:#242b3a;--accent:#ff4d6d;--accent2:#7c5cff;--text:#eef0f5;--muted:#8b93a7;--r:14px;--ease:cubic-bezier(.22,1,.36,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+main{flex:1;width:100%;max-width:1280px;margin:0 auto;padding:24px}
+footer{text-align:center;color:#5d6578;font-size:13px;padding:24px}
+.hidden{display:none!important}
+.grad{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px}
+.back{color:var(--muted);font-size:14px;margin-bottom:14px;display:inline-block;transition:color .2s,transform .2s var(--ease)}
+.back:hover{color:var(--text);transform:translateX(-3px)}
+.hint{font-size:12px;color:var(--muted);margin:-6px 0 14px;line-height:1.5}
+
+/* ---------- Tugmalar va formalar ---------- */
+.btn{display:inline-block;background:linear-gradient(135deg,var(--accent),var(--accent2));background-size:160% 160%;border:0;border-radius:10px;padding:11px 18px;cursor:pointer;font-weight:600;color:#fff;transition:transform .2s var(--ease),box-shadow .3s,background-position .6s,opacity .2s;box-shadow:0 6px 20px -8px #ff4d6d88}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px -8px #7c5cff99;background-position:100% 50%}
+.btn:active{transform:translateY(0) scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:var(--panel2);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:#3a4358;box-shadow:0 6px 18px -10px #0008}
+.btn.danger{background:#3a1520;color:#ff8fa3;border:1px solid #5a2030;padding:7px 12px;font-size:13px;box-shadow:none}
+.btn.danger:hover{background:#4a1a28;box-shadow:none}
+.btn.sm{padding:7px 12px;font-size:13px}
+input,select,textarea{background:var(--panel2);border:1px solid #2a3244;border-radius:10px;padding:11px 13px;outline:none;width:100%;transition:border-color .2s,box-shadow .25s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px #ff4d6d22}
+textarea{min-height:110px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.err{color:#ff8fa3;font-size:14px;min-height:20px;margin-top:6px;animation:shake .4s}
+.ok{color:#7ee787;font-size:14px;margin-top:6px;animation:fadeUp .4s var(--ease) both}
+
+/* ---------- Topbar ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:20px;padding:14px 24px;background:#0b0d12e6;backdrop-filter:blur(12px);border-bottom:1px solid #1b2130;flex-wrap:wrap;animation:slideDown .5s var(--ease) both}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+.brand svg{transition:transform .5s var(--ease)}
+.brand:hover svg{transform:rotate(-12deg) scale(1.08)}
+.brand .grad{background-size:200% 100%;animation:gradShift 6s linear infinite}
+.topbar nav{display:flex;gap:18px;font-size:15px}
+.topbar nav a{color:var(--muted);position:relative;padding:4px 0;transition:color .2s}
+.topbar nav a::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+.topbar nav a:hover{color:var(--text)}
+.topbar nav a:hover::after{transform:scaleX(1)}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar .user{color:var(--muted);font-size:14px}
+.topbar .right .btn{padding:8px 14px;font-size:14px}
+
+/* ---------- Auth ---------- */
+.auth{min-height:70vh;display:grid;place-items:center}
+.auth .card{width:100%;max-width:400px;animation:rise .6s var(--ease) both;box-shadow:0 24px 70px -20px #000c}
+.auth h1{text-align:center;font-size:22px;margin-bottom:4px}
+.auth p.sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px}
+.auth .foot{text-align:center;margin-top:16px;font-size:14px;color:var(--muted)}
+.auth .foot a{color:var(--accent);transition:color .2s}
+.auth .foot a:hover{color:var(--accent2)}
+
+/* ---------- Bosh sahifa ---------- */
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.toolbar input{max-width:360px;border-radius:999px;padding:10px 16px}
+.sec{font-size:20px;margin:30px 0 14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.chip{background:var(--panel2);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:13px;color:var(--muted);transition:all .25s var(--ease)}
+.chip:hover{color:var(--text);border-color:#3a4358;transform:translateY(-2px)}
+.chip.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;box-shadow:0 6px 18px -8px #7c5cff}
+
+.hero{position:relative;border-radius:20px;overflow:hidden;min-height:320px;margin-bottom:10px;display:flex;align-items:flex-end;padding:36px;background:linear-gradient(120deg,#2b1040,#0f1a3a);animation:rise .8s var(--ease) both}
+.hero::before{content:"";position:absolute;inset:-25%;background:radial-gradient(circle at 30% 30%,#ff4d6d55,transparent 42%),radial-gradient(circle at 72% 65%,#7c5cff55,transparent 46%);animation:drift 16s ease-in-out infinite alternate}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0b0d12 0%,#0b0d1277 55%,transparent 100%)}
+.hero .info{position:relative;z-index:1;max-width:560px}
+.hero h1{font-size:38px;margin-bottom:10px;line-height:1.1;animation:fadeUp .8s var(--ease) .15s both}
+.hero p{color:#c9cedb;margin:10px 0 18px;line-height:1.5;font-size:15px;animation:fadeUp .8s var(--ease) .3s both}
+.hero .btn{animation:fadeUp .8s var(--ease) .45s both}
+.tag{display:inline-block;font-size:12px;background:#ffffff14;border:1px solid #ffffff22;padding:4px 10px;border-radius:999px;margin:0 6px 6px 0;color:#d6dbe7}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:block;transition:transform .35s var(--ease),border-color .3s,box-shadow .35s;animation:rise .6s var(--ease) both}
+.item:hover{transform:translateY(-6px);border-color:#3a4358;box-shadow:0 18px 40px -18px #7c5cff88}
+.poster{aspect-ratio:2/3;width:100%;background:linear-gradient(160deg,#2a1d44,#152038);display:grid;place-items:center;position:relative;overflow:hidden;font-size:44px;font-weight:800}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease)}
+.item:hover .poster img{transform:scale(1.07)}
+.item .meta{padding:11px 12px 13px}
+.item h3{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item small{color:var(--muted);font-size:12px}
+.bar{height:4px;background:#ffffff1a;margin-top:8px;border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 1s var(--ease)}
+
+/* ---------- Anime / tomosha ---------- */
+.detail{display:grid;grid-template-columns:260px 1fr;gap:30px;margin-top:22px}
+.detail .poster{border-radius:var(--r);animation:rise .7s var(--ease) both;box-shadow:0 20px 50px -20px #000}
+.detail > div{animation:fadeUp .7s var(--ease) .1s both}
+.detail h2{font-size:30px;margin-bottom:8px}
+.detail .desc{color:#c9cedb;line-height:1.6;margin:14px 0 20px;font-size:15px}
+.player{width:100%;aspect-ratio:16/9;background:#000;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);animation:fadeUp .6s var(--ease) both;box-shadow:0 20px 50px -20px #000}
+.player video,.player iframe{width:100%;height:100%;border:0;display:block}
+.eps{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.eps a{background:var(--panel2);border:1px solid var(--line);padding:8px 14px;border-radius:9px;font-size:14px;transition:all .25s var(--ease)}
+.eps a:hover{border-color:#3a4358;transform:translateY(-2px)}
+.eps a.on{border-color:var(--accent);color:#ff8fa3;box-shadow:0 0 0 3px #ff4d6d22}
+.eps a.done::after{content:"✓";margin-left:6px;color:#7ee787}
+.watch-wrap{display:grid;grid-template-columns:1fr 300px;gap:24px;margin-top:10px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;max-height:620px;overflow:auto;animation:fadeUp .7s var(--ease) .15s both}
+.side a{display:block;padding:10px 12px;border-radius:9px;font-size:14px;transition:background .2s,padding .25s var(--ease)}
+.side a:hover{background:var(--panel2);padding-left:16px}
+.side a.on{background:var(--panel2);color:#ff8fa3}
+
+/* ---------- Admin ---------- */
+.admin{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.admin .card{animation:rise .6s var(--ease) both}
+.li{display:flex;gap:12px;align-items:center;background:var(--panel2);border-radius:10px;padding:10px;margin-bottom:10px;transition:transform .25s var(--ease),background .2s;animation:fadeUp .5s var(--ease) both}
+.li:hover{transform:translateX(4px);background:#252c3c}
+.li .thumb{width:44px;height:62px;border-radius:7px;flex:0 0 auto;background:#222;overflow:hidden;display:grid;place-items:center;font-weight:700}
+.li .thumb img{width:100%;height:100%;object-fit:cover}
+.li .t{flex:1;min-width:0}
+.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .t small{color:var(--muted);font-size:12px}
+
+/* ---------- Skeleton (yuklanish) ---------- */
+.skel{background:linear-gradient(90deg,#1a1f2b 25%,#262e3f 50%,#1a1f2b 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:12px}
+
+/* ---------- Sahifa o'tishlari ---------- */
+.page-enter{animation:fadeUp .5s var(--ease) both}
+
+/* ---------- Keyframes ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:none}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@keyframes drift{from{transform:translate(0,0) rotate(0deg)}to{transform:translate(-4%,3%) rotate(6deg)}}
+@keyframes gradShift{from{background-position:0% 50%}to{background-position:200% 50%}}
+
+/* Harakat kamaytirilgan foydalanuvchilar uchun animatsiyalar o'chiriladi */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+
+@media (max-width:820px){
+  .detail,.watch-wrap,.admin{grid-template-columns:1fr}
+  .detail .poster{max-width:220px}
+  .hero{padding:24px;min-height:260px}
+  .hero h1{font-size:28px}
+  .row2{grid-template-columns:1fr}
+  main{padding:16px}
+  .topbar nav{order:3;width:100%;justify-content:center}
+}
