@@ -107,10 +107,11 @@ async function runComprehensiveAudit() {
   try {
     const apiRes = await fetch(`${PROD_URL}/api/animes`);
     const apiJson = await apiRes.json();
-    if (apiRes.status === 200 && Array.isArray(apiJson.animes)) {
-      recordTest('API Endpoints', 'GET /api/animes', 'PASS', `Returned ${apiJson.animes.length} animes`);
+    const animeList = apiJson.data || apiJson.animes;
+    if (apiRes.status === 200 && Array.isArray(animeList)) {
+      recordTest('API Endpoints', 'GET /api/animes', 'PASS', `Status: 200 OK, Returned ${animeList.length} animes (Count: ${apiJson.count || 0})`);
     } else {
-      recordTest('API Endpoints', 'GET /api/animes', 'FAIL', `Status: ${apiRes.status}`);
+      recordTest('API Endpoints', 'GET /api/animes', 'FAIL', `Status: ${apiRes.status}, Json: ${JSON.stringify(apiJson).slice(0, 50)}`);
     }
   } catch (e) {
     recordTest('API Endpoints', 'GET /api/animes', 'FAIL', e.message);
