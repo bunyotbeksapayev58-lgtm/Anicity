@@ -9,6 +9,7 @@
     "start": "next start",
     "test": "node tests/anicity.test.mjs && node tests/security_regression.test.mjs && node tests/live_safety_regression.test.mjs && node tests/admin_pagination_regression.test.mjs && node tests/subscription_grant_regression.test.mjs && node tests/profile_assistant_regression.test.mjs && node tests/assistant_security_fixes.test.mjs && node tests/avatar_security.test.mjs",
     "test:qa": "npm test",
+    "test:e2e:browser": "node tests/browser_live_e2e.mjs",
     "test:e2e:live": "node tests/admin_live_e2e.test.mjs",
     "test:live:audit": "node tests/comprehensive_qa_audit.mjs",
     "test:live:verify": "node tests/prod_live_verify.mjs"
