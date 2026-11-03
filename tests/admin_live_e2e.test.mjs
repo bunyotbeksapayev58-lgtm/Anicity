@@ -2,12 +2,17 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
-// Read from .env.local
-const envContent = fs.readFileSync('.env.local', 'utf-8');
-for (const line of envContent.split('\n')) {
-  const [k, ...rest] = line.split('=');
-  if (k && rest) process.env[k.trim()] = rest.join('=').trim();
+// Read from .env.local if present
+if (fs.existsSync('.env.local')) {
+  const envContent = fs.readFileSync('.env.local', 'utf-8');
+  for (const line of envContent.split('\n')) {
+    const [k, ...rest] = line.split('=');
+    if (k && rest) process.env[k.trim()] = rest.join('=').trim();
+  }
 }
+
+const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || 'sapayev1231@gmail.com';
+const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || 'sapayev3112';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -18,10 +23,10 @@ async function run() {
   console.log('--- ADMIN LIVE DATABASE & DECOUPLED WORKFLOW TEST ---');
 
   // 1. Authenticate as Admin
-  console.log('1. Signing in with sapayev1231@gmail.com...');
+  console.log(`1. Signing in with ${QA_EMAIL}...`);
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: 'sapayev1231@gmail.com',
-    password: 'sapayev3112',
+    email: QA_EMAIL,
+    password: QA_PASSWORD,
   });
   assert.ok(!authError, `Auth failed: ${authError?.message}`);
   assert.strictEqual(authData.user.email, 'sapayev1231@gmail.com');

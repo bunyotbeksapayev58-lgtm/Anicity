@@ -1,0 +1,71 @@
+name: AniCity Production QA Audit & Regression Tests
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Runs daily at 05:00 UTC (10:00 Tashkent time) for periodic health verification
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target Production URL to test'
+        required: false
+        default: 'https://anicity-app.vercel.app'
+
+jobs:
+  qa-regression-and-audit:
+    name: Full QA Audit & Regression Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PROD_URL: ${{ inputs.target_url || secrets.PROD_URL || 'https://anicity-app.vercel.app' }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://lngeosburovsxotywbfw.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      QA_USER_EMAIL: ${{ secrets.QA_USER_EMAIL }}
+      QA_USER_PASSWORD: ${{ secrets.QA_USER_PASSWORD }}
+
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Install dependencies
+        run: npm ci
+
+      - name: 4. Build application (Turbopack compile test)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: 5. Run Unit & Validation Test Suite (28 suites)
+        run: node tests/anicity.test.mjs
+
+      - name: 6. Run Supabase Database & Decoupled Admin E2E Workflow
+        if: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' }}
+        run: node tests/admin_live_e2e.test.mjs
+
+      - name: 7. Run Comprehensive Production QA Audit (Public, Gated, RLS, Viewports)
+        if: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' }}
+        run: node tests/comprehensive_qa_audit.mjs
+
+      - name: 8. Run Live Video Player & Episode Verification
+        if: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' }}
+        run: node tests/prod_live_verify.mjs
+
+      - name: 9. Upload Test Artifacts & Logs on Failure or Success
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anicity-qa-audit-results
+          path: |
+            tests/
+            .next/
+          retention-days: 14

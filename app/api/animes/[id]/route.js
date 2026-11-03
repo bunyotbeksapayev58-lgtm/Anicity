@@ -1,4 +1,4 @@
-import { json, fail, isUuid, readJson, requireAdmin, requireUser } from '@/lib/api';
+import { json, fail, isUuid, readJson, requireAdmin, getPublicContext } from '@/lib/api';
 import { validateAnime, validateEpisodes } from '@/lib/validate';
 import { removePosterByUrl } from '@/lib/storage';
 
@@ -6,16 +6,17 @@ import { removePosterByUrl } from '@/lib/storage';
 export async function GET(request, { params }) {
   const { id } = await params;
   if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
-  const ctx = await requireUser();
-  if (ctx.error) return ctx.error;
+  const { supabase } = await getPublicContext();
 
-  const { data, error } = await ctx.supabase
+  const { data, error } = await supabase
     .from('animes')
     .select('*, episodes(id, number, title, video_url)')
     .eq('id', id)
     .single();
   if (error || !data) return fail('Topilmadi', 404);
-  data.episodes.sort((x, y) => x.number - y.number);
+  if (Array.isArray(data.episodes)) {
+    data.episodes.sort((x, y) => x.number - y.number);
+  }
   return json(data);
 }
 

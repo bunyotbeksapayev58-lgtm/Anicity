@@ -1,17 +1,16 @@
-import { json, fail, readJson, requireAdmin, requireUser } from '@/lib/api';
+import { json, fail, readJson, requireAdmin, getPublicContext } from '@/lib/api';
 import { validateAnime, validateEpisodes } from '@/lib/validate';
 
 // GET /api/animes?q=nom&limit=24&offset=0
 export async function GET(request) {
-  const ctx = await requireUser();
-  if (ctx.error) return ctx.error;
+  const { supabase } = await getPublicContext();
 
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 24, 1), 100);
   const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0);
 
-  let query = ctx.supabase
+  let query = supabase
     .from('animes')
     .select('id, title, year, status, genres, poster_url, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
