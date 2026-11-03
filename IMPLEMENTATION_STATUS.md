@@ -6,6 +6,8 @@
 **Jonli Sayt URL:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)  
 **GitHub Repozitoriyasi:** [https://github.com/bunyotbeksapayev58-lgtm/Anicity](https://github.com/bunyotbeksapayev58-lgtm/Anicity)  
 
+> Bu 2026-11-02 dagi tarixiy holat hisoboti. Keyingi READ-ONLY audit va mahalliy ta’mirlashdan so‘ng production, deploy yoki jonli Supabase holati qayta tekshirilmagan.
+
 ---
 
 ## 1. Loyiha arxitekturasi va bajarilgan ishlar

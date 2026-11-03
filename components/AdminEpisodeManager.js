@@ -9,7 +9,12 @@ import {
 } from '@/app/actions/admin';
 import { driveProblem } from '@/lib/drive';
 
-export default function AdminEpisodeManager({ animes = [], initialAnimeId = null }) {
+export default function AdminEpisodeManager({ animes = [], initialAnimeId = null, permissions = null }) {
+  const assistant = permissions !== null;
+  const canCreateEpisode = !assistant || Boolean(permissions.episode_create && permissions.video_upload);
+  const canEditEpisode = !assistant || Boolean(permissions.episode_edit);
+  const canDeleteEpisode = !assistant || Boolean(permissions.episode_delete);
+  const canChangeVideo = !assistant || Boolean(permissions.video_upload);
   const [selectedAnimeId, setSelectedAnimeId] = useState(
     initialAnimeId || animes[0]?.id || ''
   );
@@ -288,7 +293,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
       {/* Main 2-column or stacked layout: Left = Form, Right = Episodes list */}
       <div className="admin-grid-layout" style={{ marginTop: 20 }}>
         {/* Left Column: Add / Edit Episode Form */}
-        <div className="card admin-pane">
+        {(canCreateEpisode || (canEditEpisode && editingEpisode)) && <div className="card admin-pane">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 className="admin-pane-title" style={{ margin: 0 }}>
               {editingEpisode ? `✏️ ${editingEpisode.number}-qismni tahrirlash` : '➕ Yangi Qism Qo‘shish'}
@@ -311,7 +316,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   value={seasonNumber}
                   onChange={(e) => setSeasonNumber(Math.max(1, parseInt(e.target.value, 10) || 1))}
                   required
-                  disabled={isPending}
+                  disabled={isPending || (assistant && editingEpisode && !canEditEpisode)}
                 />
               </div>
 
@@ -324,7 +329,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   value={episodeNumber}
                   onChange={(e) => setEpisodeNumber(Math.max(1, parseInt(e.target.value, 10) || 1))}
                   required
-                  disabled={isPending}
+                  disabled={isPending || (assistant && editingEpisode && !canEditEpisode)}
                 />
               </div>
             </div>
@@ -341,7 +346,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Masalan: 1-qism: Qayta uyg‘onish"
-                disabled={isPending}
+                disabled={isPending || (assistant && editingEpisode && !canEditEpisode)}
               />
             </div>
 
@@ -356,7 +361,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="https://drive.google.com/file/d/XXXXXX/view?usp=sharing"
                 required
-                disabled={isPending}
+                disabled={isPending || (assistant && editingEpisode && !canChangeVideo)}
                 className={driveWarning ? 'input-error' : ''}
               />
               {driveWarning && (
@@ -365,6 +370,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                 </div>
               )}
               <p className="hint" style={{ marginTop: 4 }}>
+                Bu maydon video faylni yuklamaydi — faqat mavjud video manbasining URL manzilini saqlaydi.{' '}
                 Google Drive video faylida: <b>Ulashish (Share) → «Havolaga ega bo‘lgan har kim» (Anyone with the link)</b> parametrini yoqing.
                 Papka havolasi qabul qilinmaydi.
               </p>
@@ -388,7 +394,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/jpg"
                   onChange={handleThumbChange}
-                  disabled={isPending}
+                  disabled={isPending || assistant}
                 />
               </div>
             </div>
@@ -416,11 +422,11 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 placeholder="Ushbu qismda qahramonlar yangi dushman bilan to‘qnash kelishadi..."
-                disabled={isPending}
+                disabled={isPending || (assistant && editingEpisode && !canEditEpisode)}
               />
             </div>
 
-            <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
+            {!assistant && <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
               <input
                 type="checkbox"
                 id="ep_is_published"
@@ -432,7 +438,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
               <label htmlFor="ep_is_published" style={{ cursor: 'pointer', margin: 0 }}>
                 Hozir saytda ochiq bo‘lsin (Faol/Chiqarilgan)
               </label>
-            </div>
+            </div>}
 
             <button
               type="submit"
@@ -447,7 +453,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   : '➕ Qismni Yuklash va Saqlash'}
             </button>
           </form>
-        </div>
+        </div>}
 
         {/* Right Column: Existing Episodes List */}
         <div className="card admin-pane">
@@ -455,14 +461,14 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
             <h3 className="admin-pane-title" style={{ margin: 0 }}>
               📺 Yuklangan Qismlar ({currentEpisodes.length})
             </h3>
-            <button
+            {canCreateEpisode && <button
               type="button"
               className="btn ghost sm"
               onClick={() => resetFormForNext()}
               title="Yangi qism kiritish"
             >
               + Yangi qism
-            </button>
+            </button>}
           </div>
 
           {currentEpisodes.length > 0 ? (
@@ -502,7 +508,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                     >
                       🔗
                     </a>
-                    <button
+                    {!assistant && <button
                       type="button"
                       onClick={() => handleTogglePublish(ep)}
                       className={`btn sm ${ep.is_published !== false ? 'ghost' : 'primary'}`}
@@ -510,8 +516,8 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                       disabled={isPending}
                     >
                       {ep.is_published !== false ? 'Yashirish' : 'Ochish'}
-                    </button>
-                    <button
+                    </button>}
+                    {canEditEpisode && <button
                       type="button"
                       onClick={() => handleStartEdit(ep)}
                       className="btn ghost sm"
@@ -519,8 +525,8 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                       disabled={isPending}
                     >
                       ✏️
-                    </button>
-                    <button
+                    </button>}
+                    {canDeleteEpisode && <button
                       type="button"
                       onClick={() => handleDelete(ep)}
                       className="btn danger sm"
@@ -528,7 +534,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                       disabled={isPending}
                     >
                       🗑️
-                    </button>
+                    </button>}
                   </div>
                 </div>
               ))}

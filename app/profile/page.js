@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import AnimeCard from '@/components/AnimeCard';
+import { getSubscriptionSummary } from '@/lib/subscriptions';
+import ProfileEditor from '@/components/ProfileEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,17 +22,19 @@ export default async function ProfilePage() {
   // 1. Fetch user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, username, display_name, avatar_url, role, subscription_plan, subscription_expires_at, created_at')
+    .select('id, username, display_name, avatar_url, created_at')
     .eq('id', user.id)
     .single();
 
   // 2. Fetch User Subscriptions History
-  const { data: userSubsRaw } = await supabase
+  const { data: userSubsRaw, error: userSubsError } = await supabase
     .from('user_subscriptions')
     .select('id, plan_name, status, starts_at, expires_at, grant_type, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
+  if (userSubsError) throw new Error('Obuna ma’lumotini yuklashda xatolik: ' + userSubsError.message);
   const userSubs = userSubsRaw || [];
+  const subscription = getSubscriptionSummary(userSubs);
 
   // 3. Fetch Watch History (Ko'rish tarixi)
   const { data: historyRaw } = await supabase
@@ -53,11 +57,8 @@ export default async function ProfilePage() {
   const favoritesList = (favoritesRaw || []).map((f) => f.animes).filter(Boolean);
 
   const now = new Date();
-  const isVip =
-    profile?.subscription_plan === 'vip' &&
-    (!profile.subscription_expires_at || new Date(profile.subscription_expires_at) > now);
-
-  const expDate = profile?.subscription_expires_at ? new Date(profile.subscription_expires_at) : null;
+  const isVip = subscription.isVip;
+  const expDate = subscription.expiresAt ? new Date(subscription.expiresAt) : null;
   let daysLeft = null;
   if (isVip && expDate) {
     daysLeft = Math.max(1, Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
@@ -75,7 +76,9 @@ export default async function ProfilePage() {
         <div className="profile-header-content">
           <div className="profile-avatar-large">
             <div className={`avatar-big-circle ${isVip ? 'has-vip-ring' : ''}`}>
-              {(profile?.username || user.email || 'A').charAt(0).toUpperCase()}
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="Profil rasmi" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                : (profile?.display_name || profile?.username || user.email || 'A').charAt(0).toUpperCase()}
             </div>
             {isVip && <span className="avatar-vip-crown" title="VIP A’zo">👑</span>}
           </div>
@@ -113,6 +116,10 @@ export default async function ProfilePage() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="card profile-edit-card">
+        <ProfileEditor displayName={profile?.display_name || ''} avatarUrl={profile?.avatar_url || ''} username={profile?.username || ''} />
       </div>
 
       {/* Subscription Card Section */}
@@ -160,7 +167,10 @@ export default async function ProfilePage() {
               </thead>
               <tbody>
                 {userSubs.map((sub) => {
-                  const active = sub.status === 'active' && new Date(sub.expires_at) > now;
+                  const startsAt = new Date(sub.starts_at);
+                  const expiresAt = new Date(sub.expires_at);
+                  const active = sub.status === 'active' && startsAt <= now && expiresAt > now;
+                  const scheduled = sub.status === 'active' && startsAt > now;
                   return (
                     <tr key={sub.id}>
                       <td><b>{sub.plan_name}</b></td>
@@ -168,7 +178,7 @@ export default async function ProfilePage() {
                       <td>{new Date(sub.expires_at).toLocaleDateString('uz-UZ')}</td>
                       <td>
                         <span className={active ? 'badge-published' : 'badge-draft'}>
-                          {active ? '● Faol' : '⌛ Yakunlangan'}
+                          {active ? '● Faol' : scheduled ? '◷ Rejalashtirilgan' : expiresAt <= now ? '⌛ Yakunlangan' : '✕ Bekor qilingan'}
                         </span>
                       </td>
                     </tr>

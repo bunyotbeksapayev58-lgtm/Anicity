@@ -45,8 +45,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-      - name: 5. Run Unit & Validation Test Suite (28 suites)
-        run: node tests/anicity.test.mjs
+      - name: 5. Run Unit & Regression Test Suite
+        run: npm test
 
       - name: 6. Run Supabase Database & Decoupled Admin E2E Workflow
         if: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' }}

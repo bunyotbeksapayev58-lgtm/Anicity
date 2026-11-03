@@ -1,25 +1,13 @@
-import fs from 'node:fs';
 import assert from 'node:assert';
 import { createClient } from '@supabase/supabase-js';
+import { requireLiveTestConfig } from './live-safety.mjs';
 
-// Load environment if .env.local exists
-if (fs.existsSync('.env.local')) {
-  const envContent = fs.readFileSync('.env.local', 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const [k, ...rest] = line.split('=');
-    if (k && rest) process.env[k.trim()] = rest.join('=').trim();
-  }
-}
-
-const PROD_URL = process.env.PROD_URL || 'https://anicity-app.vercel.app';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || 'sapayev1231@gmail.com';
-const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || 'sapayev3112';
+const liveConfig = requireLiveTestConfig({ target: true });
+const QA_TARGET_URL = liveConfig.targetUrl;
 
 const auditResults = {
   timestamp: new Date().toISOString(),
-  target: PROD_URL,
+  target: QA_TARGET_URL,
   passed: 0,
   failed: 0,
   warnings: 0,
@@ -39,7 +27,7 @@ function recordTest(category, name, status, details = '') {
 async function runComprehensiveAudit() {
   console.log('\n======================================================');
   console.log('   ANICITY PROFESSIONAL QA AUDIT & VERIFICATION');
-  console.log(`   Target: ${PROD_URL}`);
+  console.log(`   Target: ${QA_TARGET_URL}`);
   console.log(`   Time: ${new Date().toISOString()}`);
   console.log('======================================================\n');
 
@@ -56,7 +44,7 @@ async function runComprehensiveAudit() {
 
   for (const route of publicRoutes) {
     try {
-      const res = await fetch(`${PROD_URL}${route.path}`, {
+      const res = await fetch(`${QA_TARGET_URL}${route.path}`, {
         headers: { 'User-Agent': 'AniCity-QA-Bot/1.0' },
       });
       const html = await res.text();
@@ -85,7 +73,7 @@ async function runComprehensiveAudit() {
 
   for (const route of protectedRoutes) {
     try {
-      const res = await fetch(`${PROD_URL}${route.path}`, {
+      const res = await fetch(`${QA_TARGET_URL}${route.path}`, {
         redirect: 'manual',
         headers: { 'User-Agent': 'AniCity-QA-Bot/1.0' },
       });
@@ -105,7 +93,7 @@ async function runComprehensiveAudit() {
   // 3. API ENDPOINTS AUDIT
   console.log('\n--- 3. AUDITING API ENDPOINTS ---');
   try {
-    const apiRes = await fetch(`${PROD_URL}/api/animes`);
+    const apiRes = await fetch(`${QA_TARGET_URL}/api/animes`);
     const apiJson = await apiRes.json();
     const animeList = apiJson.data || apiJson.animes;
     if (apiRes.status === 200 && Array.isArray(animeList)) {
@@ -119,23 +107,23 @@ async function runComprehensiveAudit() {
 
   // 4. SUPABASE AUTHENTICATION & SESSION PERSISTENCE
   console.log('\n--- 4. AUDITING AUTH & SESSION HANDLING ---');
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = createClient(liveConfig.supabaseUrl, liveConfig.anonKey);
   let sessionData = null;
 
   try {
     const { data: auth, error: authError } = await supabase.auth.signInWithPassword({
-      email: QA_EMAIL,
-      password: QA_PASSWORD,
+      email: liveConfig.userEmail,
+      password: liveConfig.userPassword,
     });
     if (authError) throw authError;
 
     sessionData = auth;
-    recordTest('Authentication', 'Sign in with QA credentials', 'PASS', `User: @${auth.user.email}`);
+    recordTest('Authentication', 'Sign in with dedicated QA account', 'PASS');
 
     // Verify role & privileges
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, username, role, subscription_plan')
+      .select('id, username, role')
       .eq('id', auth.user.id)
       .single();
 
@@ -144,6 +132,15 @@ async function runComprehensiveAudit() {
     } else {
       recordTest('Authentication', 'Admin role verification', 'FAIL', `Role is: ${profile?.role}`);
     }
+
+    const { data: subscriptions, error: subscriptionError } = await supabase
+      .from('user_subscriptions')
+      .select('id, plan_name, status, starts_at, expires_at')
+      .eq('user_id', auth.user.id)
+      .order('expires_at', { ascending: false })
+      .limit(1);
+    if (subscriptionError) throw subscriptionError;
+    recordTest('Subscriptions', 'Read own subscription status', 'PASS', `${subscriptions?.length || 0} current record(s) loaded`);
   } catch (err) {
     recordTest('Authentication', 'Sign in with QA credentials', 'FAIL', err.message);
   }
@@ -192,11 +189,11 @@ async function runComprehensiveAudit() {
   // 7. RESPONSIVE VIEWPORT CSS VERIFICATION (Production Assets)
   console.log('\n--- 7. AUDITING RESPONSIVE VIEWPORTS & CSS SYSTEM ---');
   try {
-    const prodHomeRes = await fetch(PROD_URL);
+    const prodHomeRes = await fetch(QA_TARGET_URL);
     const prodHomeHtml = await prodHomeRes.text();
     const cssMatch = prodHomeHtml.match(/href="(\/_next\/static\/immutable\/chunks\/[^"]+\.css)"/);
     if (cssMatch && cssMatch[1]) {
-      const cssRes = await fetch(PROD_URL + cssMatch[1]);
+      const cssRes = await fetch(QA_TARGET_URL + cssMatch[1]);
       const cssText = await cssRes.text();
 
       // Check essential responsive rules

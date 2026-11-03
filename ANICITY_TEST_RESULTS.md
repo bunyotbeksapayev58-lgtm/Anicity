@@ -4,6 +4,8 @@
 **Test Qamrovi:** Avtomatlashtirilgan unit-testlar, Next.js build tekshiruvi, Supabase RLS sinovlari va jonli HTTP so‘rovlari.  
 **Natija:** **100% Muvaffaqiyatli (Barcha testlar o‘tdi)**
 
+> Ushbu hujjat 2026-11-02 dagi avvalgi sinov hisoboti. Jonli sinov va build natijalari shu ta’mirlash sessiyasida qayta bajarilmadi. Joriy xavfsiz standart buyruq `npm test` faqat mahalliy testlarni bajaradi; jonli testlar alohida opt-in talab qiladi.
+
 ---
 
 ## 1. Avtomatlashtirilgan Test To‘plami (`npm test`)

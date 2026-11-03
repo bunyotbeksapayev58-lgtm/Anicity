@@ -7,8 +7,16 @@ export default async function Header() {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data: profile } = user
-    ? await supabase.from('profiles').select('username, role').eq('id', user.id).single()
+    ? await supabase.from('profiles').select('username, display_name, avatar_url, role').eq('id', user.id).single()
     : { data: null };
+  const { data: subscriptions, error: subscriptionsError } = user
+    ? await supabase.from('user_subscriptions').select('status, starts_at, expires_at').eq('user_id', user.id).eq('status', 'active')
+    : { data: [] };
+  if (subscriptionsError) throw new Error('Obuna holatini tekshirishda xatolik: ' + subscriptionsError.message);
+  const now = new Date();
+  const isVip = (subscriptions || []).some((subscription) =>
+    new Date(subscription.starts_at) <= now && new Date(subscription.expires_at) > now
+  );
 
-  return <Navbar user={user} profile={profile} logoutAction={logout} />;
+  return <Navbar user={user} profile={{ ...profile, isVip }} logoutAction={logout} />;
 }

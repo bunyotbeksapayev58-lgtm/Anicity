@@ -3,6 +3,7 @@
 **Loyiha nomi:** Anicity (Anime Streaming Platform)  
 **Holat:** Ishlab chiqish, ma'lumotlar bazasi integratsiyasi, xavfsizlik, testlar, GitHub va Vercel jonli deployi 100% to‘liq yakunlandi!  
 **Sana:** 2026-11-02  
+> Tarixiy hisobot: undagi build, test va deploy holatlari ushbu ta’mirlash sessiyasida qayta tasdiqlanmadi.
 **Vebsayt manzili (Jonli URL):** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)  
 **Qo‘shimcha Vercel domenlari:**
 - [https://yozora-app.vercel.app](https://yozora-app.vercel.app)

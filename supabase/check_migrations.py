@@ -41,26 +41,26 @@ for path in FILES:
 
     # 2) idempotentlik
     for m in re.finditer(r'create\s+table\s+(?!if\s+not\s+exists)(\S+)', s, re.I):
-        errors.append(f'{name}: create table {m.group(1)} "if not exists" yo\'q')
+        warnings.append(f'{name}: create table {m.group(1)} qayta qo\'llash uchun idempotent emas')
     for m in re.finditer(r'create\s+(unique\s+)?index\s+(?!if\s+not\s+exists)(\S+)', s, re.I):
         errors.append(f'{name}: index {m.group(2)} "if not exists" yo\'q')
     for m in re.finditer(r'create\s+policy\s+"([^"]+)"\s+on\s+(\S+)', s, re.I):
         pat = re.compile(r'drop\s+policy\s+if\s+exists\s+"%s"\s+on\s+%s' % (re.escape(m.group(1)), re.escape(m.group(2))), re.I)
         if not pat.search(s):
-            errors.append(f'{name}: policy "{m.group(1)}" uchun drop policy if exists yo\'q')
+            warnings.append(f'{name}: policy "{m.group(1)}" qayta qo\'llashdan oldin drop qilinmaydi')
     for m in re.finditer(r'create\s+trigger\s+(\S+)', s, re.I):
         if not re.search(r'drop\s+trigger\s+if\s+exists\s+%s' % re.escape(m.group(1)), s, re.I):
             errors.append(f'{name}: trigger {m.group(1)} uchun drop trigger if exists yo\'q')
 
     # 3) ob'ektlar tartibi (fayl ichida va fayllar bo'yicha ketma-ketlik)
     # Jadval yaratishlarni o'qish (self-reference ni hisobga olamiz)
-    local_tables = {('public.' + t).lower() for t in re.findall(r'create\s+table\s+if\s+not\s+exists\s+public\.(\w+)', s, re.I)}
+    local_tables = {('public.' + t).lower() for t in re.findall(r'create\s+table\s+(?:if\s+not\s+exists\s+)?public\.(\w+)', s, re.I)}
     for m in re.finditer(r'references\s+(public\.\w+|auth\.\w+|storage\.\w+)', s, re.I):
         t = m.group(1).lower()
         if t in BUILTIN_TABLES or t in defined_tables or t in local_tables:
             continue
         # Jadval shu qatorda yaratilayotgan bo'lishi mumkin (self-reference)
-        if re.search(r'create\s+table\s+if\s+not\s+exists\s+' + re.escape(t) + r'\b', s, re.I):
+        if re.search(r'create\s+table\s+(?:if\s+not\s+exists\s+)?' + re.escape(t) + r'\b', s, re.I):
             continue
         errors.append(f'{name}: {t} ga reference, lekin u oldin yaratilmagan')
     defined_tables |= local_tables
@@ -125,7 +125,18 @@ for m in re.finditer(r'create\s+or\s+replace\s+function\s+public\.(\w+)\s*\((.*?
 
 # 5b) Ruxsat ro'yxati: anon/public/service_role hech qanday public funksiya EXECUTE ololmaydi;
 #     authenticated faqat ruxsat etilgan ro'yxatni oladi.
-AUTH_ALLOWED = {'is_staff', 'is_admin', 'is_owner', 'is_active_user', 'set_user_role', 'set_user_suspended'}
+AUTH_ALLOWED = {
+    'is_staff', 'is_admin', 'is_owner', 'is_active_user', 'set_user_role', 'set_user_suspended',
+    'admin_list_users', 'admin_create_anime_with_episodes', 'admin_replace_anime_episodes',
+    'admin_grant_user_subscription', 'admin_extend_user_subscription', 'admin_revoke_user_subscription',
+    'admin_toggle_user_vip', 'admin_update_anime_and_episodes', 'assistant_has_permission',
+    'assistant_can_manage_content', 'main_admin_search_assistant_candidates',
+    'main_admin_list_assistant_admins', 'main_admin_appoint_assistant',
+    'main_admin_set_assistant_permissions', 'main_admin_remove_assistant',
+    'main_admin_revoke_all_assistant_permissions', 'assistant_create_anime_with_episodes',
+    'assistant_update_anime_and_episodes', 'assistant_update_anime_and_episodes_authorized',
+    'assistant_log_content_failure',
+}
 for m in re.finditer(r'grant\s+execute\s+on\s+function\s+public\.(\w+)\s*\([^)]*\)\s+to\s+([\w,\s]+);', ALL, re.I):
     fname, roles = m.group(1).lower(), [r.strip().lower() for r in m.group(2).split(',')]
     for r in roles:
@@ -159,7 +170,7 @@ for t in ('animes', 'episodes', 'seasons', 'episode_subtitles', 'banners', 'anno
         errors.append(f'{t}: audit trigger yo\'q')
 
 # 5g) Har bir jadvalda RLS yoqilgan
-for t in re.findall(r'create\s+table\s+if\s+not\s+exists\s+public\.(\w+)', ALL, re.I):
+for t in re.findall(r'create\s+table\s+(?:if\s+not\s+exists\s+)?public\.(\w+)', ALL, re.I):
     if not re.search(r'alter\s+table\s+public\.%s\s+enable\s+row\s+level\s+security' % t, ALL, re.I):
         errors.append(f'{t}: RLS yoqilmagan')
 

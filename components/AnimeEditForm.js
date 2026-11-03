@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition } from 'react';
 import Link from 'next/link';
 
-export default function AnimeEditForm({ action, defaults }) {
+export default function AnimeEditForm({ action, defaults, assistant = false }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -71,7 +71,7 @@ export default function AnimeEditForm({ action, defaults }) {
 
       <div style={{ marginBottom: 16, background: 'rgba(108, 92, 231, 0.1)', padding: 12, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>📺 Ushbu anime qismlarini mustaqil boshqarish:</span>
-        <Link href={`/admin?tab=episodes&animeId=${d.id}`} className="btn primary sm">
+        <Link href={assistant ? `/assistant-admin?tab=episodes&animeId=${d.id}` : `/admin?tab=episodes&animeId=${d.id}`} className="btn primary sm">
           Qismlar Boshqaruvi →
         </Link>
       </div>
@@ -156,8 +156,8 @@ export default function AnimeEditForm({ action, defaults }) {
       {/* Poster and Banner updates */}
       <div className="row2">
         <div className="field">
-          <label>Yangi poster fayl yuklash (3-5 MB gacha)</label>
-          <input name="poster" type="file" accept="image/*" onChange={handlePosterChange} disabled={isPending} />
+          <label>{assistant ? 'Poster faylini yuklash o‘chirilgan; URL dan foydalaning' : 'Yangi poster fayl yuklash (3-5 MB gacha)'}</label>
+          <input name="poster" type="file" accept="image/*" onChange={handlePosterChange} disabled={isPending || assistant} />
           {posterPreview && (
             <div className="preview-container" style={{ marginTop: 8 }}>
               <img src={posterPreview} alt="" className="preview-img poster" />
@@ -167,8 +167,8 @@ export default function AnimeEditForm({ action, defaults }) {
         </div>
 
         <div className="field">
-          <label>Yangi banner fayl yuklash (3-5 MB gacha)</label>
-          <input name="banner" type="file" accept="image/*" onChange={handleBannerChange} disabled={isPending} />
+          <label>{assistant ? 'Banner faylini yuklash o‘chirilgan; URL dan foydalaning' : 'Yangi banner fayl yuklash (3-5 MB gacha)'}</label>
+          <input name="banner" type="file" accept="image/*" onChange={handleBannerChange} disabled={isPending || assistant} />
           {bannerPreview && (
             <div className="preview-container" style={{ marginTop: 8 }}>
               <img src={bannerPreview} alt="" className="preview-img banner" />
@@ -179,15 +179,16 @@ export default function AnimeEditForm({ action, defaults }) {
       </div>
 
       <div className="row2" style={{ alignItems: 'center', marginTop: 12 }}>
-        <label className="checkbox-toggle-label">
+        {!assistant && <label className="checkbox-toggle-label">
           <input type="checkbox" name="is_featured" defaultChecked={Boolean(d.is_featured)} disabled={isPending} />
           <span>🌟 Tavsiya qilingan / Bosh sahifada ko‘rsatish</span>
-        </label>
-        <label className="checkbox-toggle-label">
+        </label>}
+        {!assistant && <label className="checkbox-toggle-label">
           <input type="checkbox" name="is_published" defaultChecked={d.is_published !== false} disabled={isPending} />
           <span>🚀 Saytda ommaga ko‘rinsin (Published)</span>
-        </label>
+        </label>}
       </div>
+      {assistant && <input type="hidden" name="is_featured" value={String(Boolean(d.is_featured))} />}
 
       <button className="btn primary" style={{ width: '100%', marginTop: 20 }} disabled={isPending}>
         {isPending ? '⏳ Saqlanmoqda...' : '💾 O‘zgarishlarni Saqlash'}

@@ -1,35 +1,26 @@
 import assert from 'node:assert';
-import fs from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLiveTestConfig } from './live-safety.mjs';
 
-// Read from .env.local if present
-if (fs.existsSync('.env.local')) {
-  const envContent = fs.readFileSync('.env.local', 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const [k, ...rest] = line.split('=');
-    if (k && rest) process.env[k.trim()] = rest.join('=').trim();
-  }
-}
-
-const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || 'sapayev1231@gmail.com';
-const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || 'sapayev3112';
+const liveConfig = requireLiveTestConfig({ writes: true });
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  liveConfig.supabaseUrl,
+  liveConfig.anonKey
 );
 
 async function run() {
   console.log('--- ADMIN LIVE DATABASE & DECOUPLED WORKFLOW TEST ---');
+  const owned = { animeId: null, subscriptionId: null, auditLogIds: [], bannerId: null };
+  try {
 
   // 1. Authenticate as Admin
-  console.log(`1. Signing in with ${QA_EMAIL}...`);
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: QA_EMAIL,
-    password: QA_PASSWORD,
+    email: liveConfig.userEmail,
+    password: liveConfig.userPassword,
   });
   assert.ok(!authError, `Auth failed: ${authError?.message}`);
-  assert.strictEqual(authData.user.email, 'sapayev1231@gmail.com');
+  assert.ok(authData.user?.id, 'Test account sign-in must return a user');
   console.log('✔ Admin authenticated successfully');
 
   // 2. Verify Profile Role
@@ -59,6 +50,7 @@ async function run() {
     .single();
 
   assert.ok(!animeErr, `Anime creation failed: ${animeErr?.message}`);
+  owned.animeId = newAnime.id;
   assert.strictEqual(newAnime.title, testTitle);
   assert.strictEqual(newAnime.age_rating, '16+');
   console.log(`✔ Anime created without episodes: "${newAnime.title}" (ID: ${newAnime.id})`);
@@ -122,6 +114,7 @@ async function run() {
   console.log('6. Cleaning up test anime and associated episodes...');
   const { error: delErr } = await supabase.from('animes').delete().eq('id', newAnime.id);
   assert.ok(!delErr, `Cleanup failed: ${delErr?.message}`);
+  owned.animeId = null;
 
   // Confirm cascade deletion
   const { data: leftoverEps } = await supabase.from('episodes').select('id').eq('anime_id', newAnime.id);
@@ -164,6 +157,7 @@ async function run() {
     .select('id, plan_name, status')
     .single();
   assert.ok(!subErr, `User subscription insertion failed: ${subErr?.message}`);
+  owned.subscriptionId = userSub.id;
   assert.strictEqual(userSub.status, 'active');
 
   // Insert audit log
@@ -180,6 +174,7 @@ async function run() {
     .select('id, action, reason')
     .single();
   assert.ok(!auditErr, `Audit log insertion failed: ${auditErr?.message}`);
+  owned.auditLogIds.push(auditLog.id);
   assert.strictEqual(auditLog.action, 'grant');
   console.log('✔ Subscription grant and audit log entry created successfully');
 
@@ -193,7 +188,7 @@ async function run() {
     .eq('id', userSub.id);
   assert.ok(!extendErr, `Subscription extension failed: ${extendErr?.message}`);
 
-  const { error: extendAuditErr } = await supabase
+  const { data: extendAuditLog, error: extendAuditErr } = await supabase
     .from('subscription_audit_logs')
     .insert({
       admin_id: authData.user.id,
@@ -202,14 +197,23 @@ async function run() {
       previous_plan: 'vip',
       new_plan: 'vip',
       reason: 'E2E Automated Test Extension +30 days',
-    });
+    })
+    .select('id')
+    .single();
   assert.ok(!extendAuditErr, `Extension audit log failed: ${extendAuditErr?.message}`);
+  owned.auditLogIds.push(extendAuditLog.id);
   console.log('✔ Subscription duration extended +30 days and audited');
 
   // 10. Clean up test subscription records
   console.log('10. Cleaning up test subscription and audit log records...');
-  await supabase.from('user_subscriptions').delete().eq('id', userSub.id);
-  await supabase.from('subscription_audit_logs').delete().eq('user_id', testTargetUserId).like('reason', 'E2E Automated Test%');
+  const { error: subDeleteErr } = await supabase.from('user_subscriptions').delete().eq('id', userSub.id);
+  assert.ok(!subDeleteErr, 'Could not remove the test-owned subscription');
+  owned.subscriptionId = null;
+  for (const auditId of owned.auditLogIds) {
+    const { error: auditDeleteErr } = await supabase.from('subscription_audit_logs').delete().eq('id', auditId);
+    assert.ok(!auditDeleteErr, 'Could not remove a test-owned audit row');
+  }
+  owned.auditLogIds = [];
   console.log('✔ Test subscription data cleaned up successfully');
 
   // 11. Testing Video Banner Creation & Database Persistence
@@ -230,6 +234,7 @@ async function run() {
     .single();
 
   assert.ok(!bannerInsertErr, `Video banner insertion failed: ${bannerInsertErr?.message}`);
+  owned.bannerId = createdBanner.id;
   assert.strictEqual(createdBanner.title, testBannerTitle);
   assert.strictEqual(createdBanner.video_url, testVideoUrl);
   assert.strictEqual(createdBanner.image_url, null);
@@ -238,11 +243,26 @@ async function run() {
   // Clean up test banner
   const { error: bannerDeleteErr } = await supabase.from('banners').delete().eq('id', createdBanner.id);
   assert.ok(!bannerDeleteErr, `Banner deletion failed: ${bannerDeleteErr?.message}`);
+  owned.bannerId = null;
   console.log('✔ Test video banner cleaned up successfully');
 
   console.log('\n=============================================');
   console.log('ALL E2E WORKFLOW CHECKS PASSED PERFECTLY!');
   console.log('=============================================\n');
+  } finally {
+    const cleanupTasks = [
+      ['animes', owned.animeId],
+      ['user_subscriptions', owned.subscriptionId],
+      ['banners', owned.bannerId],
+      ...owned.auditLogIds.map((id) => ['subscription_audit_logs', id]),
+    ].filter(([, id]) => id);
+    const cleanupResults = await Promise.all(cleanupTasks.map(([table, id]) =>
+      supabase.from(table).delete().eq('id', id)
+    ));
+    if (cleanupResults.some((result) => result.error)) {
+      throw new Error('Cleanup of a test-owned row failed; manual cleanup is required.');
+    }
+  }
 }
 
 run().catch((err) => {

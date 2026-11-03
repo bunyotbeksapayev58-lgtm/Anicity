@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import {
   grantUserSubscription,
   extendUserSubscription,
@@ -9,13 +10,18 @@ import {
 
 export default function AdminUserSubscriptions({
   users = [],
+  totalCount = 0,
+  page = 1,
+  pageSize = 50,
+  search = '',
+  status = 'all',
   plans = [],
   subscriptions = [],
   auditLogs = [],
 }) {
   const [isPending, startTransition] = useTransition();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'vip' | 'free' | 'expired'
+  const [searchQuery] = useState(search);
+  const [filterStatus] = useState(status); // 'all' | 'vip' | 'free' | 'expired'
   const [activeTab, setActiveTab] = useState('users'); // 'users' | 'subscriptions' | 'audit'
 
   // Modal / Action states
@@ -32,28 +38,14 @@ export default function AdminUserSubscriptions({
   const [error, setError] = useState(null);
 
   // Search filter
-  const filteredUsers = users.filter((u) => {
-    const q = searchQuery.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      u.username?.toLowerCase().includes(q) ||
-      u.display_name?.toLowerCase().includes(q) ||
-      u.id?.toLowerCase().includes(q);
-
-    const now = new Date();
-    const isVip = u.subscription_plan === 'vip' && (!u.subscription_expires_at || new Date(u.subscription_expires_at) > now);
-    const isExpired = u.subscription_plan === 'vip' && u.subscription_expires_at && new Date(u.subscription_expires_at) <= now;
-
-    if (!matchSearch) return false;
-    if (filterStatus === 'vip') return isVip;
-    if (filterStatus === 'free') return !isVip && !isExpired;
-    if (filterStatus === 'expired') return isExpired;
-    return true;
-  });
+  const filteredUsers = users;
+  const totalUserPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageHref = (nextPage) => `/admin?tab=subscriptions&usersPage=${nextPage}&usersPageSize=${pageSize}&usersSearch=${encodeURIComponent(search)}&usersStatus=${status}`;
+  const filteredPageCount = totalCount;
 
   // Calculate statistics
   const now = new Date();
-  const totalUsers = users.length;
+  const totalUsers = totalCount;
   const activeVipCount = users.filter(
     (u) => u.subscription_plan === 'vip' && (!u.subscription_expires_at || new Date(u.subscription_expires_at) > now)
   ).length;
@@ -160,7 +152,7 @@ export default function AdminUserSubscriptions({
           <span className="metric-icon">👥</span>
           <div className="metric-info">
             <span className="metric-val">{totalUsers}</span>
-            <span className="metric-label">Jami Foydalanuvchilar</span>
+            <span className="metric-label">Filtrlangan natijalar</span>
           </div>
         </div>
 
@@ -168,7 +160,7 @@ export default function AdminUserSubscriptions({
           <span className="metric-icon">👑</span>
           <div className="metric-info">
             <span className="metric-val">{activeVipCount}</span>
-            <span className="metric-label">Faol VIP Obunachilar</span>
+            <span className="metric-label">Faol VIP (joriy sahifada)</span>
           </div>
         </div>
 
@@ -176,7 +168,7 @@ export default function AdminUserSubscriptions({
           <span className="metric-icon">⌛</span>
           <div className="metric-info">
             <span className="metric-val">{expiredCount}</span>
-            <span className="metric-label">Muddati Tugaganlar</span>
+            <span className="metric-label">Muddati tugagan (joriy sahifada)</span>
           </div>
         </div>
 
@@ -199,7 +191,7 @@ export default function AdminUserSubscriptions({
           className={`subtab-btn ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
         >
-          👤 Foydalanuvchilar va VIP berish ({filteredUsers.length})
+          👤 Foydalanuvchilar va VIP berish ({filteredPageCount})
         </button>
         <button
           type="button"
@@ -221,49 +213,28 @@ export default function AdminUserSubscriptions({
       {activeTab === 'users' && (
         <div className="card admin-pane">
           {/* Search & Filter Bar */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+          <form action="/admin" method="get" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+            <input type="hidden" name="tab" value="subscriptions" />
+            <input type="hidden" name="usersPage" value="1" />
+            <input type="hidden" name="usersPageSize" value={pageSize} />
             <div style={{ flex: 1, minWidth: 260 }}>
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                name="usersSearch"
+                defaultValue={searchQuery}
                 placeholder="Foydalanuvchini username, ism yoki ID bo‘yicha qidirish..."
                 className="search-input-pro"
                 style={{ width: '100%', height: 42 }}
               />
             </div>
-
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={`btn sm ${filterStatus === 'all' ? 'primary' : 'ghost'}`}
-                onClick={() => setFilterStatus('all')}
-              >
-                Barchasi ({users.length})
-              </button>
-              <button
-                type="button"
-                className={`btn sm ${filterStatus === 'vip' ? 'primary' : 'ghost'}`}
-                onClick={() => setFilterStatus('vip')}
-              >
-                👑 Faol VIP ({activeVipCount})
-              </button>
-              <button
-                type="button"
-                className={`btn sm ${filterStatus === 'free' ? 'primary' : 'ghost'}`}
-                onClick={() => setFilterStatus('free')}
-              >
-                Oddiy ({totalUsers - activeVipCount - expiredCount})
-              </button>
-              <button
-                type="button"
-                className={`btn sm ${filterStatus === 'expired' ? 'primary' : 'ghost'}`}
-                onClick={() => setFilterStatus('expired')}
-              >
-                Tugagan ({expiredCount})
-              </button>
-            </div>
-          </div>
+            <select name="usersStatus" defaultValue={filterStatus} aria-label="Obuna holati bo‘yicha filtrlash">
+              <option value="all">Barchasi</option>
+              <option value="vip">Faol VIP</option>
+              <option value="free">Oddiy</option>
+              <option value="expired">Muddati tugagan</option>
+            </select>
+            <button type="submit" className="btn primary sm">Qidirish</button>
+          </form>
 
           {/* Users Table */}
           <div className="table-wrapper-pro">
@@ -371,6 +342,13 @@ export default function AdminUserSubscriptions({
               </tbody>
             </table>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+            <span>{totalCount} ta natija · {page}/{totalUserPages}-sahifa</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {page > 1 && <Link className="btn ghost sm" href={pageHref(page - 1)}>Oldingi</Link>}
+              {page < totalUserPages && <Link className="btn ghost sm" href={pageHref(page + 1)}>Keyingi</Link>}
+            </div>
+          </div>
         </div>
       )}
 
@@ -397,7 +375,13 @@ export default function AdminUserSubscriptions({
               </thead>
               <tbody>
                 {subscriptions.length > 0 ? (
-                  subscriptions.map((s) => (
+                  subscriptions.map((s) => {
+                    const startsAt = new Date(s.starts_at);
+                    const expiresAt = new Date(s.expires_at);
+                    const now = new Date();
+                    const isActive = s.status === 'active' && startsAt <= now && expiresAt > now;
+                    const isScheduled = s.status === 'active' && startsAt > now;
+                    return (
                     <tr key={s.id}>
                       <td>
                         <b>@{s.user?.username || 'user'}</b>
@@ -407,8 +391,8 @@ export default function AdminUserSubscriptions({
                       <td>{new Date(s.starts_at).toLocaleDateString('uz-UZ')}</td>
                       <td>{new Date(s.expires_at).toLocaleDateString('uz-UZ')}</td>
                       <td>
-                        <span className={s.status === 'active' ? 'badge-published' : 'badge-draft'}>
-                          {s.status === 'active' ? '● Faol' : s.status === 'expired' ? '⌛ Tugagan' : '✕ Bekor qilingan'}
+                        <span className={isActive ? 'badge-published' : 'badge-draft'}>
+                          {isActive ? '● Faol' : isScheduled ? '◷ Rejalashtirilgan' : expiresAt <= now ? '⌛ Tugagan' : s.status === 'expired' ? '⌛ Tugagan' : '✕ Bekor qilingan'}
                         </span>
                       </td>
                       <td>
@@ -418,7 +402,8 @@ export default function AdminUserSubscriptions({
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.notes || '—'}</td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>

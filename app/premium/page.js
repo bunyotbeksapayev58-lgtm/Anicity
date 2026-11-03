@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getSubscriptionSummary } from '@/lib/subscriptions';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,16 +61,17 @@ export default async function PremiumPage() {
   if (user) {
     const { data: prof } = await supabase
       .from('profiles')
-      .select('subscription_plan, subscription_expires_at, username')
+      .select('username')
       .eq('id', user.id)
       .maybeSingle();
     userProfile = prof;
 
-    const { data: subs } = await supabase
+    const { data: subs, error: subsError } = await supabase
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
+    if (subsError) throw new Error('Obuna tarixini yuklashda xatolik: ' + subsError.message);
     userSubs = subs || [];
 
     const { data: txs } = await supabase
@@ -81,13 +83,9 @@ export default async function PremiumPage() {
   }
 
   const now = new Date();
-  const isVip =
-    userProfile?.subscription_plan === 'vip' &&
-    (!userProfile.subscription_expires_at || new Date(userProfile.subscription_expires_at) > now);
-
-  const expiresDate = userProfile?.subscription_expires_at
-    ? new Date(userProfile.subscription_expires_at)
-    : null;
+  const subscription = getSubscriptionSummary(userSubs, now);
+  const isVip = subscription.isVip;
+  const expiresDate = subscription.expiresAt ? new Date(subscription.expiresAt) : null;
 
   let daysRemaining = null;
   if (isVip && expiresDate) {
@@ -196,7 +194,8 @@ export default async function PremiumPage() {
               </thead>
               <tbody>
                 {userSubs.map((sub) => {
-                  const subActive = sub.status === 'active' && new Date(sub.expires_at) > now;
+                  const subActive = sub.status === 'active' &&
+                    new Date(sub.starts_at) <= now && new Date(sub.expires_at) > now;
                   return (
                     <tr key={sub.id}>
                       <td><b>{sub.plan_name}</b></td>

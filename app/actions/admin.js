@@ -3,16 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { toPlayableUrl, driveProblem } from '@/lib/drive';
-import { removePosterByUrl, uploadImageToBucket, uploadMediaToBucket, validateImageFile, validateVideoFile } from '@/lib/storage';
+import { removePosterByUrl, removeFileByUrl, uploadImageToBucket, uploadMediaToBucket, validateImageFile, validateVideoFile } from '@/lib/storage';
 import { validateSingleEpisode, validateAnime } from '@/lib/validate';
-import { isAdminRole } from '@/lib/roles';
+import { authorizeAdminOperation } from '@/lib/admin-access';
+import { logAssistantContentFailure } from '@/lib/assistant-audit';
 
-async function assertAdmin(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Kirish talab etiladi');
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!isAdminRole(profile?.role)) throw new Error('Ushbu amalni bajarish uchun admin ruxsati yo‘q');
-  return user;
+async function assertAdmin(supabase, permission = null) {
+  const access = await authorizeAdminOperation(supabase, permission);
+  if (access.error) throw new Error(access.error);
+  return { user: access.user, role: access.role };
 }
 
 // Qismlar matnida papka havolasi yoki boshqa yaroqsiz Drive havolasi bormi (ommaviy import uchun)
@@ -55,10 +54,13 @@ function parseEpisodes(text, animeId) {
 export async function createAnime(prevState, formData) {
   try {
     const supabase = await createClient();
-    await assertAdmin(supabase);
+    const actor = await assertAdmin(supabase, 'anime_create');
 
     const title = String(formData.get('title') || '').trim();
     if (!title) return { error: 'Anime nomi kiritilishi shart' };
+    if (actor.role === 'assistant_admin' && (formData.get('poster')?.size > 0 || formData.get('banner')?.size > 0)) {
+      return { error: 'Assistantlar rasm faylini yuklay olmaydi. Poster va banner uchun URL manzilidan foydalaning.' };
+    }
 
     // Kompyuterdan poster va banner yuklash (maks 5MB)
     let posterUrl = null;
@@ -76,6 +78,7 @@ export async function createAnime(prevState, formData) {
     try {
       bannerUrl = await uploadImageToBucket(supabase, formData.get('banner'), 'anime-banners', { maxSizeMB: 5 });
     } catch (bannerErr) {
+      await removeFileByUrl(supabase, 'posters', posterUrl);
       return { error: `Banner yuklashda xatolik: ${bannerErr.message}` };
     }
     if (!bannerUrl) {
@@ -100,49 +103,43 @@ export async function createAnime(prevState, formData) {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    // Animeni saqlash
-    const { data: anime, error: animeErr } = await supabase
-      .from('animes')
-      .insert({
-        title,
-        alt_title: altTitle,
-        description,
-        year,
-        status,
-        age_rating: ageRating,
-        genres,
-        studio,
-        director,
-        poster_url: posterUrl,
-        banner_url: bannerUrl,
-        is_featured: isFeatured,
-        is_published: isPublished,
-        release_day: releaseDay,
-        fandub_team: fandubTeam,
-      })
-      .select('id, title, poster_url')
-      .single();
-
-    if (animeErr) {
-      return { error: `Bazada saqlashda xatolik: ${animeErr.message}` };
-    }
-
-    // Agar ixtiyoriy ravishda ommaviy epizodlar kiritilgan bo'lsa (ixtiyoriy, majburiy emas!)
     const episodesRaw = formData.get('episodes');
+    let episodes = [];
     if (episodesRaw && String(episodesRaw).trim()) {
+      if (actor.role === 'assistant_admin') {
+        const [episodeAccess, videoAccess] = await Promise.all([
+          authorizeAdminOperation(supabase, 'episode_create'),
+          authorizeAdminOperation(supabase, 'video_upload'),
+        ]);
+        if (episodeAccess.error || videoAccess.error) return { error: 'Boshlang‘ich qism uchun episode_create va video_upload ruxsatlari kerak.' };
+      }
       const driveIssues = driveErrors(episodesRaw);
       if (driveIssues.length) {
-        return {
-          success: true,
-          animeId: anime.id,
-          animeTitle: anime.title,
-          message: `“${title}” saqlandi, ammo ba'zi qismlarda xatolik bor: ${driveIssues[0]}`,
-        };
+        await Promise.all([
+          removeFileByUrl(supabase, 'posters', posterUrl),
+          removeFileByUrl(supabase, 'anime-banners', bannerUrl),
+        ]);
+        return { error: 'Qism havolasi noto‘g‘ri: ' + driveIssues[0] };
       }
-      const parsed = parseEpisodes(episodesRaw, anime.id);
-      if (parsed.length) {
-        await supabase.from('episodes').insert(parsed);
-      }
+      episodes = parseEpisodes(episodesRaw, null);
+    }
+
+    const rpcName = actor.role === 'assistant_admin' ? 'assistant_create_anime_with_episodes' : 'admin_create_anime_with_episodes';
+    const { data: anime, error: animeErr } = await supabase.rpc(rpcName, {
+      p_anime: {
+        title, alt_title: altTitle, description, year, status, age_rating: ageRating, genres,
+        studio, director, poster_url: posterUrl, banner_url: bannerUrl,
+        is_featured: isFeatured, is_published: actor.role === 'assistant_admin' ? false : isPublished, release_day: releaseDay, fandub_team: fandubTeam,
+      },
+      p_episodes: episodes,
+    });
+    if (animeErr || !anime) {
+      if (actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'anime_create', null, null);
+      await Promise.all([
+        removeFileByUrl(supabase, 'posters', posterUrl),
+        removeFileByUrl(supabase, 'anime-banners', bannerUrl),
+      ]);
+      return { error: 'Bazada saqlashda xatolik: ' + (animeErr?.message || 'Javob olinmadi') };
     }
 
     revalidatePath('/');
@@ -163,13 +160,16 @@ export async function createAnime(prevState, formData) {
 export async function updateAnime(prevState, formData) {
   try {
     const supabase = await createClient();
-    await assertAdmin(supabase);
+    const actor = await assertAdmin(supabase, 'anime_edit');
 
     const id = String(formData.get('id') || '').trim();
     if (!id) return { error: 'Anime ID si topilmadi' };
 
     const title = String(formData.get('title') || '').trim();
     if (!title) return { error: 'Anime nomi kiritilishi shart' };
+    if (actor.role === 'assistant_admin' && (formData.get('poster')?.size > 0 || formData.get('banner')?.size > 0)) {
+      return { error: 'Assistantlar rasm faylini yuklay olmaydi. Rasm URL manzilidan foydalaning.' };
+    }
 
     // Yangi rasm yuklangan bo'lsa
     let posterUrl = null;
@@ -229,9 +229,13 @@ export async function updateAnime(prevState, formData) {
 
     if (posterUrl) updatePayload.poster_url = posterUrl;
     if (bannerUrl) updatePayload.banner_url = bannerUrl;
+    if (actor.role === 'assistant_admin') delete updatePayload.is_published;
 
     const { error } = await supabase.from('animes').update(updatePayload).eq('id', id);
-    if (error) return { error: error.message };
+    if (error) {
+      if (actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'anime_update', id);
+      return { error: error.message };
+    }
 
     // Agar yangi poster yuklangan bo'lsa va eskisi bo'lsa
     if (posterUrl && formData.get('oldPoster')) {
@@ -251,12 +255,14 @@ export async function updateAnime(prevState, formData) {
 
 export async function deleteAnime(formData) {
   const supabase = await createClient();
-  await assertAdmin(supabase);
+  const actor = await assertAdmin(supabase, 'anime_delete');
   const id = String(formData.get('id'));
 
   const { data: anime } = await supabase.from('animes').select('poster_url').eq('id', id).single();
-  await supabase.from('animes').delete().eq('id', id);
-  if (anime?.poster_url) await removePosterByUrl(supabase, anime.poster_url);
+  const { error } = await supabase.from('animes').delete().eq('id', id);
+  if (error && actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'anime_delete', id);
+  if (error) throw new Error(error.message);
+  if (actor.role !== 'assistant_admin' && anime?.poster_url) await removePosterByUrl(supabase, anime.poster_url);
 
   revalidatePath('/');
   revalidatePath('/admin');
@@ -270,7 +276,7 @@ export async function deleteAnime(formData) {
 export async function createEpisode(prevState, formData) {
   try {
     const supabase = await createClient();
-    await assertAdmin(supabase);
+    const actor = await assertAdmin(supabase, 'episode_create');
 
     const animeId = String(formData.get('anime_id') || '').trim();
     if (!animeId) return { error: 'Anime tanlanishi shart' };
@@ -290,6 +296,11 @@ export async function createEpisode(prevState, formData) {
     const driveIssue = driveProblem(videoUrlRaw);
     if (driveIssue) {
       return { error: driveIssue };
+    }
+    if (actor.role === 'assistant_admin') {
+      const videoAccess = await authorizeAdminOperation(supabase, 'video_upload');
+      if (videoAccess.error) return { error: 'Video manbasini qo‘shish uchun video_upload ruxsati kerak.' };
+      if (formData.get('thumbnail')?.size > 0) return { error: 'Assistantlar qism muqovasini URL orqali kiritishi mumkin.' };
     }
     const playableUrl = toPlayableUrl(videoUrlRaw);
 
@@ -335,12 +346,13 @@ export async function createEpisode(prevState, formData) {
         video_url: playableUrl,
         thumbnail_url: thumbnailUrl,
         quality,
-        is_published: isPublished,
+        is_published: actor.role === 'assistant_admin' ? false : isPublished,
       })
       .select('id, number, title')
       .single();
 
     if (insertErr) {
+      if (actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'episode_create', null, animeId);
       return { error: `Qismni saqlashda xatolik: ${insertErr.message}` };
     }
 
@@ -361,7 +373,7 @@ export async function createEpisode(prevState, formData) {
 export async function updateEpisode(prevState, formData) {
   try {
     const supabase = await createClient();
-    await assertAdmin(supabase);
+    const actor = await assertAdmin(supabase, 'episode_edit');
 
     const episodeId = String(formData.get('episode_id') || '').trim();
     const animeId = String(formData.get('anime_id') || '').trim();
@@ -378,6 +390,9 @@ export async function updateEpisode(prevState, formData) {
 
     const driveIssue = driveProblem(videoUrlRaw);
     if (driveIssue) return { error: driveIssue };
+    if (actor.role === 'assistant_admin' && formData.get('thumbnail')?.size > 0) {
+      return { error: 'Assistantlar qism muqovasini URL orqali kiritishi mumkin.' };
+    }
     const playableUrl = toPlayableUrl(videoUrlRaw);
 
     // Agar raqam o'zgartirilayotgan bo'lsa, boshqa qism bilan to'qnashuvni tekshirish
@@ -427,7 +442,10 @@ export async function updateEpisode(prevState, formData) {
     }
 
     const { error: updateErr } = await supabase.from('episodes').update(updatePayload).eq('id', episodeId);
-    if (updateErr) return { error: updateErr.message };
+    if (updateErr) {
+      if (actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'episode_update', episodeId, animeId);
+      return { error: updateErr.message };
+    }
 
     revalidatePath('/');
     revalidatePath('/admin');
@@ -442,14 +460,17 @@ export async function updateEpisode(prevState, formData) {
 export async function deleteEpisode(formData) {
   try {
     const supabase = await createClient();
-    await assertAdmin(supabase);
+    const actor = await assertAdmin(supabase, 'episode_delete');
 
     const episodeId = String(formData.get('episode_id') || '').trim();
     const animeId = String(formData.get('anime_id') || '').trim();
     if (!episodeId) throw new Error('Qism ID si topilmadi');
 
     const { error } = await supabase.from('episodes').delete().eq('id', episodeId);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (actor.role === 'assistant_admin') await logAssistantContentFailure(supabase, 'episode_delete', episodeId, animeId);
+      throw new Error(error.message);
+    }
 
     revalidatePath('/');
     revalidatePath('/admin');
@@ -708,36 +729,26 @@ export async function toggleTrailerActive(formData) {
 export async function toggleUserVip(formData) {
   const supabase = await createClient();
   await assertAdmin(supabase);
-  const userId = String(formData.get('userId'));
-  const currentPlan = String(formData.get('currentPlan') || 'free');
-  const newPlan = currentPlan === 'vip' ? 'free' : 'vip';
-  const expiresAt = newPlan === 'vip' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
-
-  await supabase
-    .from('profiles')
-    .update({
-      subscription_plan: newPlan,
-      subscription_expires_at: expiresAt,
-    })
-    .eq('id', userId);
-
+  const userId = String(formData.get('userId') || '').trim();
+  if (!userId) throw new Error('Foydalanuvchi ID topilmadi');
+  const { error } = await supabase.rpc('admin_toggle_user_vip', { p_user_id: userId });
+  if (error) throw new Error(error.message);
   revalidatePath('/admin');
+  revalidatePath('/profile');
+  revalidatePath('/premium');
 }
 
 export async function toggleUserSuspension(formData) {
   const supabase = await createClient();
   await assertAdmin(supabase);
-  const userId = String(formData.get('userId'));
-  const isSuspended = formData.get('isSuspended') === 'true';
-  const suspendedAt = isSuspended ? null : new Date().toISOString();
-
-  await supabase
-    .from('profiles')
-    .update({
-      suspended_at: suspendedAt,
-    })
-    .eq('id', userId);
-
+  const userId = String(formData.get('userId') || '').trim();
+  if (!userId) throw new Error('Foydalanuvchi ID topilmadi');
+  const currentlySuspended = formData.get('isSuspended') === 'true';
+  const { error } = await supabase.rpc('set_user_suspended', {
+    p_target: userId,
+    p_suspended: !currentlySuspended,
+  });
+  if (error) throw new Error(error.message);
   revalidatePath('/admin');
 }
 
@@ -838,13 +849,15 @@ export async function updateSubscriptionPlan(prevState, formData) {
 export async function togglePlanActive(formData) {
   const supabase = await createClient();
   await assertAdmin(supabase);
-  const id = String(formData.get('id'));
+  const id = String(formData.get('id') || '').trim();
+  if (!id) throw new Error('Plan ID topilmadi');
   const currentActive = formData.get('active') === 'true';
 
-  await supabase.from('subscription_plans').update({
+  const { error } = await supabase.from('subscription_plans').update({
     is_active: !currentActive,
     updated_at: new Date().toISOString(),
   }).eq('id', id);
+  if (error) throw new Error(error.message);
 
   revalidatePath('/admin');
   revalidatePath('/premium');
@@ -853,9 +866,11 @@ export async function togglePlanActive(formData) {
 export async function deleteSubscriptionPlan(formData) {
   const supabase = await createClient();
   await assertAdmin(supabase);
-  const id = String(formData.get('id'));
+  const id = String(formData.get('id') || '').trim();
+  if (!id) throw new Error('Plan ID topilmadi');
 
-  await supabase.from('subscription_plans').delete().eq('id', id);
+  const { error } = await supabase.from('subscription_plans').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 
   revalidatePath('/admin');
   revalidatePath('/premium');
@@ -865,90 +880,27 @@ export async function deleteSubscriptionPlan(formData) {
 export async function grantUserSubscription(prevState, formData) {
   try {
     const supabase = await createClient();
-    const adminUser = await assertAdmin(supabase);
+    await assertAdmin(supabase);
 
     const userId = String(formData.get('user_id') || '').trim();
     if (!userId) return { error: 'Foydalanuvchi tanlanishi shart' };
-
     const planId = String(formData.get('plan_id') || '').trim();
-    const customDays = parseInt(formData.get('duration_days') || '0', 10);
-    const notes = String(formData.get('notes') || 'Admin tomonidan taqdim etildi').trim();
-
-    // 1. Get Plan
-    let plan = null;
-    if (planId) {
-      const { data } = await supabase.from('subscription_plans').select('*').eq('id', planId).maybeSingle();
-      plan = data;
-    }
-
-    const durationDays = customDays > 0 ? customDays : (plan?.duration_days || 30);
-    const planName = plan?.name || `${durationDays} kunlik VIP`;
-
-    // 2. Target user profile
-    const { data: targetProfile, error: profErr } = await supabase
-      .from('profiles')
-      .select('id, username, subscription_plan, subscription_expires_at')
-      .eq('id', userId)
-      .single();
-
-    if (profErr || !targetProfile) {
-      return { error: 'Foydalanuvchi profili topilmadi' };
-    }
-
-    // 3. Compute Dates
-    const now = new Date();
-    let startsAt = now;
-    // If user already has an active VIP, extend from current expiration date
-    if (
-      targetProfile.subscription_plan === 'vip' &&
-      targetProfile.subscription_expires_at &&
-      new Date(targetProfile.subscription_expires_at) > now
-    ) {
-      startsAt = new Date(targetProfile.subscription_expires_at);
-    }
-    const expiresAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
-
-    // 4. Insert into user_subscriptions
-    const { error: subErr } = await supabase.from('user_subscriptions').insert({
-      user_id: userId,
-      plan_id: plan?.id || null,
-      plan_name: planName,
-      status: 'active',
-      starts_at: startsAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      grant_type: 'manual_admin',
-      granted_by: adminUser.id,
-      notes: notes,
+    const customDays = Number.parseInt(String(formData.get('duration_days') || '0'), 10);
+    const notes = String(formData.get('notes') || 'Admin tomonidan taqdim etildi').trim().slice(0, 1000);
+    const { data, error } = await supabase.rpc('admin_grant_user_subscription', {
+      p_user_id: userId,
+      p_plan_id: planId || null,
+      p_duration_days: customDays || null,
+      p_notes: notes,
     });
-
-    if (subErr) return { error: `Obunani saqlashda xatolik: ${subErr.message}` };
-
-    // 5. Update profiles table
-    await supabase.from('profiles').update({
-      subscription_plan: 'vip',
-      subscription_expires_at: expiresAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', userId);
-
-    // 6. Record Audit Log
-    await supabase.from('subscription_audit_logs').insert({
-      admin_id: adminUser.id,
-      user_id: userId,
-      action: 'grant',
-      previous_plan: targetProfile.subscription_plan || 'free',
-      previous_expires_at: targetProfile.subscription_expires_at,
-      new_plan: planName,
-      new_expires_at: expiresAt.toISOString(),
-      reason: notes,
-    });
+    if (error || !data) return { error: 'Obuna berilmadi: ' + (error?.message || 'Javob olinmadi') };
 
     revalidatePath('/admin');
     revalidatePath('/profile');
     revalidatePath('/premium');
-
     return {
       success: true,
-      message: `@${targetProfile.username || 'Foydalanuvchi'} ga “${planName}” muvaffaqiyatli berildi! Tugash vaqti: ${expiresAt.toLocaleDateString('uz-UZ')} ✔`,
+      message: '@' + (data.username || 'Foydalanuvchi') + ' ga “' + data.plan_name + '” obunasi berildi.',
     };
   } catch (e) {
     return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
@@ -958,63 +910,24 @@ export async function grantUserSubscription(prevState, formData) {
 export async function extendUserSubscription(prevState, formData) {
   try {
     const supabase = await createClient();
-    const adminUser = await assertAdmin(supabase);
-
-    const subscriptionId = String(formData.get('subscription_id') || '').trim();
+    await assertAdmin(supabase);
     const userId = String(formData.get('user_id') || '').trim();
     const extendDays = parseInt(formData.get('extend_days') || '30', 10);
     const reason = String(formData.get('reason') || 'Admin tomonidan uzaytirildi').trim();
-
-    if (!userId) return { error: 'Foydalanuvchi ID topilmadi' };
-
-    const { data: targetProfile } = await supabase
-      .from('profiles')
-      .select('id, username, subscription_plan, subscription_expires_at')
-      .eq('id', userId)
-      .single();
-
-    const now = new Date();
-    let baseDate = now;
-    if (targetProfile?.subscription_expires_at && new Date(targetProfile.subscription_expires_at) > now) {
-      baseDate = new Date(targetProfile.subscription_expires_at);
-    }
-    const newExpiresAt = new Date(baseDate.getTime() + extendDays * 24 * 60 * 60 * 1000);
-
-    // Update active subscription
-    if (subscriptionId) {
-      await supabase.from('user_subscriptions').update({
-        expires_at: newExpiresAt.toISOString(),
-        status: 'active',
-        updated_at: new Date().toISOString(),
-      }).eq('id', subscriptionId);
-    }
-
-    // Update profile
-    await supabase.from('profiles').update({
-      subscription_plan: 'vip',
-      subscription_expires_at: newExpiresAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', userId);
-
-    // Audit log
-    await supabase.from('subscription_audit_logs').insert({
-      admin_id: adminUser.id,
-      user_id: userId,
-      action: 'extend',
-      previous_plan: targetProfile?.subscription_plan || 'free',
-      previous_expires_at: targetProfile?.subscription_expires_at,
-      new_plan: 'vip',
-      new_expires_at: newExpiresAt.toISOString(),
-      reason: `${extendDays} kunga uzaytirildi: ${reason}`,
+    if (!userId || !Number.isInteger(extendDays)) return { error: 'Foydalanuvchi va muddat kerak' };
+    const { data, error } = await supabase.rpc('admin_extend_user_subscription', {
+      p_user_id: userId,
+      p_duration_days: extendDays,
+      p_reason: reason.slice(0, 1000),
     });
+    if (error || !data) return { error: 'Obuna uzaytirilmadi: ' + (error?.message || 'Javob olinmadi') };
 
     revalidatePath('/admin');
     revalidatePath('/profile');
     revalidatePath('/premium');
-
     return {
       success: true,
-      message: `Obuna muddati +${extendDays} kunga muvaffaqiyatli uzaytirildi ✔`,
+      message: '@' + (data.username || 'Foydalanuvchi') + ' obunasi ' + extendDays + ' kunga uzaytirildi.',
     };
   } catch (e) {
     return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
@@ -1024,59 +937,22 @@ export async function extendUserSubscription(prevState, formData) {
 export async function revokeUserSubscription(prevState, formData) {
   try {
     const supabase = await createClient();
-    const adminUser = await assertAdmin(supabase);
-
-    const subscriptionId = String(formData.get('subscription_id') || '').trim();
+    await assertAdmin(supabase);
     const userId = String(formData.get('user_id') || '').trim();
     const reason = String(formData.get('reason') || 'Admin tomonidan bekor qilindi').trim();
-
     if (!userId) return { error: 'Foydalanuvchi ID topilmadi' };
-
-    const { data: targetProfile } = await supabase
-      .from('profiles')
-      .select('id, username, subscription_plan, subscription_expires_at')
-      .eq('id', userId)
-      .single();
-
-    // Mark subscription as cancelled
-    if (subscriptionId) {
-      await supabase.from('user_subscriptions').update({
-        status: 'cancelled',
-        updated_at: new Date().toISOString(),
-      }).eq('id', subscriptionId);
-    } else {
-      await supabase.from('user_subscriptions').update({
-        status: 'cancelled',
-        updated_at: new Date().toISOString(),
-      }).eq('user_id', userId).eq('status', 'active');
-    }
-
-    // Update profile back to free
-    await supabase.from('profiles').update({
-      subscription_plan: 'free',
-      subscription_expires_at: null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', userId);
-
-    // Audit log
-    await supabase.from('subscription_audit_logs').insert({
-      admin_id: adminUser.id,
-      user_id: userId,
-      action: 'revoke',
-      previous_plan: targetProfile?.subscription_plan || 'vip',
-      previous_expires_at: targetProfile?.subscription_expires_at,
-      new_plan: 'free',
-      new_expires_at: null,
-      reason,
+    const { data, error } = await supabase.rpc('admin_revoke_user_subscription', {
+      p_user_id: userId,
+      p_reason: reason.slice(0, 1000),
     });
+    if (error || !data) return { error: 'Obuna bekor qilinmadi: ' + (error?.message || 'Javob olinmadi') };
 
     revalidatePath('/admin');
     revalidatePath('/profile');
     revalidatePath('/premium');
-
     return {
       success: true,
-      message: `@${targetProfile?.username || 'Foydalanuvchi'} ning VIP obunasi bekor qilindi ✔`,
+      message: '@' + (data.username || 'Foydalanuvchi') + ' ning obunasi bekor qilindi.',
     };
   } catch (e) {
     return { error: e.message || 'Kutilmagan xatolik yuz berdi' };

@@ -15,6 +15,8 @@ import {
   toggleUserSuspension,
 } from '@/app/actions/admin';
 import { isAdminRole } from '@/lib/roles';
+import { getAdminUserPageCount, normalizeAdminUserQuery } from '@/lib/admin-pagination';
+import AssistantAdminManager from '@/components/AssistantAdminManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,7 @@ export default async function AdminPage({ searchParams }) {
   const resolvedSearchParams = (await searchParams) || {};
   const tab = resolvedSearchParams.tab || 'dashboard';
   const targetAnimeId = resolvedSearchParams.animeId || null;
+  const userQuery = normalizeAdminUserQuery(resolvedSearchParams);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -44,6 +47,12 @@ export default async function AdminPage({ searchParams }) {
 
   const currentUsername = profile?.username || user?.email?.split('@')[0] || 'Admin';
   const currentRole = (profile?.role || 'admin').toUpperCase();
+  let assistantData = { assistants: [], audit_logs: [] };
+  if (profile?.role === 'owner' && tab === 'assistants') {
+    const { data, error } = await supabase.rpc('main_admin_list_assistant_admins');
+    if (error) throw new Error('Assistantlar ro‘yxati yuklanmadi: ' + error.message);
+    assistantData = data || assistantData;
+  }
 
   // 1. Fetch Animes with episodes
   const { data: animesRaw } = await supabase
@@ -67,44 +76,51 @@ export default async function AdminPage({ searchParams }) {
   const trailers = trailersRaw || [];
 
   // 4. Fetch Users (Profiles)
-  const { data: usersRaw } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, role, subscription_plan, subscription_expires_at, suspended_at, created_at')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const { data: usersRaw, error: usersError } = await supabase.rpc('admin_list_users', {
+    p_page: userQuery.page,
+    p_page_size: userQuery.pageSize,
+    p_search: userQuery.search || null,
+    p_status: userQuery.status,
+  });
+  if (usersError) throw new Error('Foydalanuvchilarni yuklashda xatolik: ' + usersError.message);
   const users = usersRaw || [];
+  const totalUserCount = Number(users[0]?.total_count || 0);
+  const totalUserPages = getAdminUserPageCount(totalUserCount, userQuery.pageSize);
 
   // 5. Fetch Subscription Plans
-  const { data: plansRaw } = await supabase
+  const { data: plansRaw, error: plansError } = await supabase
     .from('subscription_plans')
     .select('*')
     .order('sort_order', { ascending: true });
+  if (plansError) throw new Error('Tariflarni yuklashda xatolik: ' + plansError.message);
   const plans = plansRaw || [];
 
   // 6. Fetch User Subscriptions
-  const { data: subscriptionsRaw } = await supabase
+  const { data: subscriptionsRaw, error: subscriptionsError } = await supabase
     .from('user_subscriptions')
     .select('id, user_id, plan_id, plan_name, status, starts_at, expires_at, grant_type, notes, created_at, user:profiles!user_subscriptions_user_id_fkey(username, display_name)')
     .order('created_at', { ascending: false })
     .limit(100);
+  if (subscriptionsError) throw new Error('Obunalarni yuklashda xatolik: ' + subscriptionsError.message);
   const subscriptions = subscriptionsRaw || [];
 
   // 7. Fetch Subscription Audit Logs
-  const { data: auditLogsRaw } = await supabase
+  const { data: auditLogsRaw, error: auditLogsError } = await supabase
     .from('subscription_audit_logs')
     .select('id, admin_id, user_id, action, previous_plan, previous_expires_at, new_plan, new_expires_at, reason, created_at, admin:profiles!subscription_audit_logs_admin_id_fkey(username), user:profiles!subscription_audit_logs_user_id_fkey(username)')
     .order('created_at', { ascending: false })
     .limit(100);
+  if (auditLogsError) throw new Error('Obuna audit jurnalini yuklashda xatolik: ' + auditLogsError.message);
   const auditLogs = auditLogsRaw || [];
 
   // Stats calculation
   const totalAnimes = animes.length;
   const totalEpisodes = animes.reduce((acc, a) => acc + (Array.isArray(a.episodes) ? a.episodes.length : 0), 0);
   const totalViews = animes.reduce((acc, a) => acc + (Number(a.view_count) || 0), 0);
-  const totalUsers = users.length;
+  const totalUsers = totalUserCount;
   const now = new Date();
   const totalVipUsers = users.filter(
-    (u) => u?.subscription_plan === 'vip' && (!u.subscription_expires_at || new Date(u.subscription_expires_at) > now)
+    (u) => u?.subscription_plan === 'vip' && u.subscription_expires_at && new Date(u.subscription_expires_at) > now
   ).length;
 
   return (
@@ -161,6 +177,11 @@ export default async function AdminPage({ searchParams }) {
         <Link href="/admin?tab=users" className={`admin-tab-btn ${tab === 'users' ? 'active' : ''}`}>
           👥 Foydalanuvchilar ({totalUsers})
         </Link>
+        {profile?.role === 'owner' && (
+          <Link href="/admin?tab=assistants" className={`admin-tab-btn ${tab === 'assistants' ? 'active' : ''}`}>
+            🛡️ Assistant ruxsatlari
+          </Link>
+        )}
         <Link href="/admin?tab=telegram" className={`admin-tab-btn ${tab === 'telegram' ? 'active' : ''}`}>
           📢 Telegram
         </Link>
@@ -299,6 +320,11 @@ export default async function AdminPage({ searchParams }) {
       {tab === 'subscriptions' && (
         <AdminUserSubscriptions
           users={users}
+          totalCount={totalUserCount}
+          page={Math.min(userQuery.page, totalUserPages)}
+          pageSize={userQuery.pageSize}
+          search={userQuery.search}
+          status={userQuery.status}
           plans={plans}
           subscriptions={subscriptions}
           auditLogs={auditLogs}
@@ -480,11 +506,19 @@ export default async function AdminPage({ searchParams }) {
         <div className="admin-users-view">
           <div className="card admin-pane">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-              <h2 className="admin-pane-title" style={{ margin: 0 }}>👥 Foydalanuvchilar Ro‘yxati ({users.length})</h2>
+              <h2 className="admin-pane-title" style={{ margin: 0 }}>👥 Foydalanuvchilar Ro‘yxati ({totalUserCount})</h2>
               <Link href="/admin?tab=subscriptions" className="btn primary sm">
                 👑 Obunalarni Boshqarishga O‘tish →
               </Link>
             </div>
+            <form action="/admin" method="get" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              <input type="hidden" name="tab" value="users" />
+              <input type="hidden" name="usersPage" value="1" />
+              <input type="hidden" name="usersPageSize" value={userQuery.pageSize} />
+              <input type="hidden" name="usersStatus" value={userQuery.status} />
+              <input className="search-input-pro" name="usersSearch" maxLength={100} defaultValue={userQuery.search} placeholder="Username, ism yoki ID bo‘yicha qidirish" />
+              <button className="btn primary sm" type="submit">Qidirish</button>
+            </form>
             <div className="table-wrapper-pro" style={{ marginTop: 16 }}>
               <table className="pro-table">
                 <thead>
@@ -498,7 +532,8 @@ export default async function AdminPage({ searchParams }) {
                 </thead>
                 <tbody>
                   {users.map((u) => {
-                    const isVipUser = u.subscription_plan === 'vip';
+                    const isVipUser = u.subscription_plan === 'vip' &&
+                      u.subscription_expires_at && new Date(u.subscription_expires_at) > new Date();
                     const isSuspended = Boolean(u.suspended_at);
                     const safeDate = u.created_at ? String(u.created_at).slice(0, 10) : '—';
 
@@ -543,8 +578,26 @@ export default async function AdminPage({ searchParams }) {
                 </tbody>
               </table>
             </div>
+            <div className="admin-user-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+              <span>{totalUserCount} foydalanuvchi · {Math.min(userQuery.page, totalUserPages)}/{totalUserPages}-sahifa</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {Math.min(userQuery.page, totalUserPages) > 1 && (
+                  <Link className="btn ghost sm" href={`/admin?tab=users&usersPage=${Math.min(userQuery.page, totalUserPages) - 1}&usersPageSize=${userQuery.pageSize}&usersSearch=${encodeURIComponent(userQuery.search)}&usersStatus=${userQuery.status}`}>Oldingi</Link>
+                )}
+                {Math.min(userQuery.page, totalUserPages) < totalUserPages && (
+                  <Link className="btn ghost sm" href={`/admin?tab=users&usersPage=${Math.min(userQuery.page, totalUserPages) + 1}&usersPageSize=${userQuery.pageSize}&usersSearch=${encodeURIComponent(userQuery.search)}&usersStatus=${userQuery.status}`}>Keyingi</Link>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      )}
+
+      {tab === 'assistants' && profile?.role === 'owner' && (
+        <AssistantAdminManager
+          initialAssistants={assistantData.assistants || []}
+          auditLogs={assistantData.audit_logs || []}
+        />
       )}
 
       {/* ================= TAB 10: TELEGRAM ================= */}

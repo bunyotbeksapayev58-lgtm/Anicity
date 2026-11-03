@@ -1,6 +1,7 @@
-import { json, fail, isUuid, readJson, requireAdmin, getPublicContext } from '@/lib/api';
+import { json, fail, isUuid, readJson, requireAdmin, requireAdminPermission, getPublicContext } from '@/lib/api';
 import { validateAnime, validateEpisodes } from '@/lib/validate';
 import { removePosterByUrl } from '@/lib/storage';
+import { logAssistantContentFailure } from '@/lib/assistant-audit';
 
 // GET /api/animes/:id
 export async function GET(request, { params }) {
@@ -24,9 +25,6 @@ export async function GET(request, { params }) {
 export async function PATCH(request, { params }) {
   const { id } = await params;
   if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
-  const ctx = await requireAdmin();
-  if (ctx.error) return ctx.error;
-
   const body = await readJson(request);
   const a = validateAnime(body, { partial: true });
   const errors = [...a.errors];
@@ -38,15 +36,47 @@ export async function PATCH(request, { params }) {
   }
   if (errors.length) return fail('Ma’lumot noto‘g‘ri', 422, errors);
 
-  if (Object.keys(a.value).length) {
-    const { error } = await ctx.supabase.from('animes').update(a.value).eq('id', id);
-    if (error) return fail(error.message, 500);
+  const hasAnimeChanges = Object.keys(a.value).length > 0;
+  const hasEpisodeReplacement = eps !== null;
+  if (!hasAnimeChanges && !hasEpisodeReplacement) {
+    const ctx = await requireAdmin();
+    if (ctx.error) return ctx.error;
+    return json({ ok: true });
   }
-  if (eps) {
-    // Qismlar to‘liq almashtiriladi
-    await ctx.supabase.from('episodes').delete().eq('anime_id', id);
-    const { error } = await ctx.supabase.from('episodes').insert(eps.map((ep) => ({ ...ep, anime_id: id })));
-    if (error) return fail(error.message, 500);
+
+  const requiredPermissions = [];
+  if (hasAnimeChanges) requiredPermissions.push('anime_edit');
+  // PATCH replaces the episode collection atomically, which includes edits,
+  // inserts, and deletion of the previous collection.
+  if (hasEpisodeReplacement) {
+    requiredPermissions.push('episode_edit', 'episode_create', 'episode_delete', 'video_upload');
+  }
+  let ctx;
+  for (const permission of [...new Set(requiredPermissions)]) {
+    const access = await requireAdminPermission(permission);
+    if (access.error) return access.error;
+    ctx = access;
+  }
+
+  if (hasAnimeChanges || hasEpisodeReplacement) {
+    const rpcName = ctx.role === 'assistant_admin'
+      ? 'assistant_update_anime_and_episodes_authorized'
+      : 'admin_update_anime_and_episodes';
+    const { error } = await ctx.supabase.rpc(rpcName, {
+      p_anime_id: id,
+      p_anime: a.value,
+      p_episodes: eps,
+    });
+    if (error) {
+      if (ctx.role === 'assistant_admin') await logAssistantContentFailure(
+        ctx.supabase, hasEpisodeReplacement ? 'episode_replace' : 'anime_update', id, id,
+      );
+      const status = error.code === '42501' ? 403
+        : error.code === 'P0002' ? 404
+          : error.code === 'P0001' ? 422
+            : error.code === '23505' ? 409 : 500;
+      return fail(error.message, status);
+    }
   }
   return json({ ok: true });
 }
@@ -55,12 +85,15 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const { id } = await params;
   if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
-  const ctx = await requireAdmin();
+  const ctx = await requireAdminPermission('anime_delete');
   if (ctx.error) return ctx.error;
 
   const { data: anime } = await ctx.supabase.from('animes').select('poster_url').eq('id', id).single();
   const { error } = await ctx.supabase.from('animes').delete().eq('id', id);
-  if (error) return fail(error.message, 500);
-  if (anime?.poster_url) await removePosterByUrl(ctx.supabase, anime.poster_url);
+  if (error) {
+    if (ctx.role === 'assistant_admin') await logAssistantContentFailure(ctx.supabase, 'anime_delete', id);
+    return fail(error.message, 500);
+  }
+  if (ctx.role !== 'assistant_admin' && anime?.poster_url) await removePosterByUrl(ctx.supabase, anime.poster_url);
   return json({ ok: true });
 }

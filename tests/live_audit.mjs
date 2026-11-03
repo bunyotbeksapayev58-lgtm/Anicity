@@ -1,31 +1,21 @@
-import fs from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLiveTestConfig } from './live-safety.mjs';
 
-// Load environment if .env.local exists
-if (fs.existsSync('.env.local')) {
-  const envContent = fs.readFileSync('.env.local', 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const [k, ...rest] = line.split('=');
-    if (k && rest) process.env[k.trim()] = rest.join('=').trim();
-  }
-}
-
-const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || 'sapayev1231@gmail.com';
-const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || 'sapayev3112';
+const liveConfig = requireLiveTestConfig();
 
 async function runLiveAudit() {
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    liveConfig.supabaseUrl,
+    liveConfig.anonKey
   );
 
   const { data: auth, error } = await supabase.auth.signInWithPassword({
-    email: QA_EMAIL,
-    password: QA_PASSWORD,
+    email: liveConfig.userEmail,
+    password: liveConfig.userPassword,
   });
   if (error) throw error;
 
-  console.log('✔ Admin authenticated successfully: @' + auth.user.email);
+  console.log('✔ Dedicated QA account authenticated successfully');
 
   // Check animes with episodes
   const { data: animes } = await supabase
@@ -40,7 +30,9 @@ async function runLiveAudit() {
       const isDrive = ep.video_url?.includes('drive.google.com');
       const isDirect = /\.(mp4|webm)/i.test(ep.video_url || '');
       console.log(`  - Episode ${ep.number}: ${ep.title || 'Untitled'}`);
-      console.log(`    URL: ${ep.video_url?.slice(0, 50)}...`);
+      let sourceHost = 'invalid-or-unknown';
+      try { sourceHost = new URL(ep.video_url).hostname; } catch {}
+      console.log(`    Source host: ${sourceHost}`);
       console.log(`    Type: ${isDrive ? 'Google Drive Embed' : isDirect ? 'Direct HTML5 Video' : 'Other'}`);
     }
   }

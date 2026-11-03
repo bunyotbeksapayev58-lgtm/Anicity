@@ -61,7 +61,8 @@ export default function Navbar({ user, profile, logoutAction }) {
     { href: '/premium', label: '👑 VIP Obuna' },
   ];
 
-  const isVip = profile?.subscription_plan === 'vip';
+  const isVip = Boolean(profile?.isVip);
+  const profileName = profile?.display_name || profile?.username || user?.email?.split('@')[0] || 'A';
 
   return (
     <>
@@ -105,6 +106,11 @@ export default function Navbar({ user, profile, logoutAction }) {
                   ⚡ Admin
                 </Link>
               )}
+              {profile?.role === 'assistant_admin' && (
+                <Link href="/assistant-admin" className={`nav-link admin-pill ${pathname.startsWith('/assistant-admin') ? 'active' : ''}`}>
+                  🛡️ Boshqaruv
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -146,10 +152,12 @@ export default function Navbar({ user, profile, logoutAction }) {
                   aria-label="Foydalanuvchi menyusi"
                 >
                   <div className={`avatar-circle ${isVip ? 'has-vip-ring' : ''}`}>
-                    {(profile?.username || user.email || 'A').charAt(0).toUpperCase()}
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                      : profileName.charAt(0).toUpperCase()}
                   </div>
                   <span className="user-name-label">
-                    {profile?.username || user.email?.split('@')[0]}
+                    {profileName}
                   </span>
                   {isVip && <span className="crown-mini" title="VIP A’zo">👑</span>}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="chevron-mini">
@@ -160,7 +168,7 @@ export default function Navbar({ user, profile, logoutAction }) {
                 {userDropdown && (
                   <div className="user-dropdown-popover">
                     <div className="dropdown-user-header">
-                      <div className="dropdown-user-name">{profile?.username || user.email?.split('@')[0]}</div>
+                      <div className="dropdown-user-name">{profileName}</div>
                       <div className="dropdown-user-email">{user.email}</div>
                       <div className="dropdown-badge">
                         {isVip ? '👑 VIP A’zo' : 'Oddiy a’zo'}
@@ -182,6 +190,11 @@ export default function Navbar({ user, profile, logoutAction }) {
                     {isAdminRole(profile?.role) && (
                       <Link href="/admin" className="dropdown-item admin-highlight">
                         <span>⚡</span> Admin Panel
+                      </Link>
+                    )}
+                    {profile?.role === 'assistant_admin' && (
+                      <Link href="/assistant-admin" className="dropdown-item admin-highlight">
+                        <span>🛡️</span> Cheklangan boshqaruv
                       </Link>
                     )}
                     <div className="dropdown-divider" />
@@ -235,6 +248,11 @@ export default function Navbar({ user, profile, logoutAction }) {
 
             {user ? (
               <>
+                {profile?.role === 'assistant_admin' && (
+                  <Link href="/assistant-admin" className="drawer-link" onClick={() => setMobileOpen(false)}>
+                    🛡️ Cheklangan boshqaruv
+                  </Link>
+                )}
                 <Link href="/profile" className="drawer-link" onClick={() => setMobileOpen(false)}>
                   👤 Profilim {isVip && '👑'}
                 </Link>

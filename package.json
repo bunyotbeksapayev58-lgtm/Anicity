@@ -7,8 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/anicity.test.mjs && node tests/admin_live_e2e.test.mjs",
-    "test:qa": "node tests/anicity.test.mjs && node tests/admin_live_e2e.test.mjs && node tests/comprehensive_qa_audit.mjs && node tests/prod_live_verify.mjs"
+    "test": "node tests/anicity.test.mjs && node tests/security_regression.test.mjs && node tests/live_safety_regression.test.mjs && node tests/admin_pagination_regression.test.mjs && node tests/subscription_grant_regression.test.mjs && node tests/profile_assistant_regression.test.mjs && node tests/assistant_security_fixes.test.mjs && node tests/avatar_security.test.mjs",
+    "test:qa": "npm test",
+    "test:e2e:live": "node tests/admin_live_e2e.test.mjs",
+    "test:live:audit": "node tests/comprehensive_qa_audit.mjs",
+    "test:live:verify": "node tests/prod_live_verify.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -16,5 +19,8 @@
     "next": "^16.4.3",
     "react": "19.0.0",
     "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.16.0"
   }
 }

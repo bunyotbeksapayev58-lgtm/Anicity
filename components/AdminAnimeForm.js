@@ -17,7 +17,7 @@ const POPULAR_GENRES = [
   'Supernatural',
 ];
 
-export default function AdminAnimeForm({ onAnimeCreated }) {
+export default function AdminAnimeForm({ onAnimeCreated, assistant = false }) {
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState(null);
   const [formSuccess, setFormSuccess] = useState(null);
@@ -283,7 +283,7 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
         {/* Poster File Upload */}
         <div className="row2">
           <div className="field">
-            <label>Poster yuklash (JPG, PNG, WebP — maks 5MB) *</label>
+          <label>{assistant ? 'Poster faylini yuklash (URL orqali kiriting)' : 'Poster yuklash (JPG, PNG, WebP — maks 5MB) *'}</label>
             <div className="file-upload-box">
               <input
                 ref={posterFileRef}
@@ -291,7 +291,7 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/jpg"
                 onChange={handlePosterChange}
-                disabled={isPending}
+                disabled={isPending || assistant}
               />
               {posterPreview && (
                 <div className="preview-container">
@@ -313,7 +313,7 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
 
           {/* Banner File Upload */}
           <div className="field">
-            <label>Katta Keng Banner / Backdrop (maks 5MB)</label>
+          <label>{assistant ? 'Banner faylini yuklash (URL orqali kiriting)' : 'Katta Keng Banner / Backdrop (maks 5MB)'}</label>
             <div className="file-upload-box">
               <input
                 ref={bannerFileRef}
@@ -321,7 +321,7 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/jpg"
                 onChange={handleBannerChange}
-                disabled={isPending}
+                disabled={isPending || assistant}
               />
               {bannerPreview && (
                 <div className="preview-container">
@@ -374,16 +374,16 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
         </div>
 
         <div className="row2" style={{ alignItems: 'center', marginTop: 12 }}>
-          <label className="checkbox-toggle-label">
+          {!assistant && <label className="checkbox-toggle-label">
             <input
               type="checkbox"
               name="is_featured"
               disabled={isPending}
             />
             <span>🌟 Tavsiya qilingan / Bosh sahifada ajratib ko‘rsatish</span>
-          </label>
+          </label>}
 
-          <label className="checkbox-toggle-label">
+          {!assistant && <label className="checkbox-toggle-label">
             <input
               type="checkbox"
               name="is_published"
@@ -391,7 +391,7 @@ export default function AdminAnimeForm({ onAnimeCreated }) {
               disabled={isPending}
             />
             <span>🚀 Saytda darhol ommaga ko‘rinsin (Published)</span>
-          </label>
+          </label>}
         </div>
 
         {/* Info notice about decoupled episodes */}

@@ -19,9 +19,11 @@ Anime tomosha platformasi. Next.js (App Router) + Supabase (Auth, Postgres, Stor
 - `app/` — sahifalar va server actions, `app/api/` — REST API
 - `components/` — UI komponentlari
 - `lib/` — Supabase klientlari, validatsiya, rollar, yordamchilar
-- `supabase/migrations/` — ma'lumotlar bazasi (001–006, tartib muhim)
+- `supabase/migrations/` — ma'lumotlar bazasi migratsiyalari (001–011, tartib muhim)
 - `supabase/check_migrations.py` — migratsiyalarning statik tekshiruvi
 - `supabase/verify.sql` — o'qish rejimidagi tekshiruv
+- `npm test` — faqat mahalliy testlar; Supabase’ga ulanmaydi
+- `npm run test:e2e:live` va `npm run test:live:*` — faqat alohida test loyihasi, test akkaunti va aniq opt-in bilan
 
 ## Imkoniyatlar
 - Ro'yxatdan o'tish, login (username yoki email), parolni tiklash

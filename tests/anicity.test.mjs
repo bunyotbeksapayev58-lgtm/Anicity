@@ -148,7 +148,7 @@ console.log('✔ Protected paths gating passed');
 // 10. Admin placeholder leak prevention
 console.log('10. Testing Admin placeholder leak prevention...');
 const safePlaceholder = 'masalan: animefan123';
-assert.ok(!safePlaceholder.includes('sapayev'), 'Placeholder must not leak admin usernames');
+assert.ok(!safePlaceholder.includes('legacy-admin-identifier'), 'Placeholder must not leak account identifiers');
 console.log('✔ Admin placeholder leak prevention passed');
 
 // 11. Testing getSiteUrl production safety and localhost prevention
@@ -177,6 +177,11 @@ try {
   const validHeaders = { 'x-forwarded-host': 'anicity-app.vercel.app', 'x-forwarded-proto': 'https' };
   const validResult = getSiteUrl(validHeaders);
   assert.strictEqual(validResult, 'https://anicity-app.vercel.app');
+
+  const attackerHeaders = { 'x-forwarded-host': 'attacker.example', 'x-forwarded-proto': 'https' };
+  assert.strictEqual(getSiteUrl(attackerHeaders), 'https://anicity-app.vercel.app', 'Unknown forwarded host must not control production redirects');
+  const badProtoHeaders = { 'x-forwarded-host': 'anicity-app.vercel.app', 'x-forwarded-proto': 'http' };
+  assert.strictEqual(getSiteUrl(badProtoHeaders), 'https://anicity-app.vercel.app', 'Production must reject non-HTTPS forwarded origins');
 
   // Development scenario
   process.env.NODE_ENV = 'development';
