@@ -207,6 +207,34 @@ async function run() {
   await supabase.from('subscription_audit_logs').delete().eq('user_id', testTargetUserId).like('reason', 'E2E Automated Test%');
   console.log('✔ Test subscription data cleaned up successfully');
 
+  // 11. Testing Video Banner Creation & Database Persistence
+  console.log('11. Testing Video Banner creation with video_url...');
+  const testBannerTitle = `E2E Video Banner ${Date.now()}`;
+  const testVideoUrl = 'https://cdn.example.com/e2e-test-video.mp4';
+  const { data: createdBanner, error: bannerInsertErr } = await supabase
+    .from('banners')
+    .insert({
+      title: testBannerTitle,
+      subtitle: 'E2E Cinematic Video Banner Subtitle',
+      video_url: testVideoUrl,
+      image_url: null,
+      sort_order: 999,
+      is_active: false,
+    })
+    .select('id, title, video_url, image_url')
+    .single();
+
+  assert.ok(!bannerInsertErr, `Video banner insertion failed: ${bannerInsertErr?.message}`);
+  assert.strictEqual(createdBanner.title, testBannerTitle);
+  assert.strictEqual(createdBanner.video_url, testVideoUrl);
+  assert.strictEqual(createdBanner.image_url, null);
+  console.log(`✔ Video banner created successfully with ID: ${createdBanner.id}`);
+
+  // Clean up test banner
+  const { error: bannerDeleteErr } = await supabase.from('banners').delete().eq('id', createdBanner.id);
+  assert.ok(!bannerDeleteErr, `Banner deletion failed: ${bannerDeleteErr?.message}`);
+  console.log('✔ Test video banner cleaned up successfully');
+
   console.log('\n=============================================');
   console.log('ALL E2E WORKFLOW CHECKS PASSED PERFECTLY!');
   console.log('=============================================\n');

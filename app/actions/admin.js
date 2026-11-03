@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { toPlayableUrl, driveProblem } from '@/lib/drive';
-import { removePosterByUrl, uploadImageToBucket, validateImageFile } from '@/lib/storage';
+import { removePosterByUrl, uploadImageToBucket, uploadMediaToBucket, validateImageFile, validateVideoFile } from '@/lib/storage';
 import { validateSingleEpisode, validateAnime } from '@/lib/validate';
 import { isAdminRole } from '@/lib/roles';
 
@@ -489,16 +489,36 @@ export async function createBanner(prevState, formData) {
     if (!title) return { error: 'Banner sarlavhasi kiritilishi shart' };
 
     const animeId = String(formData.get('anime_id') || '').trim() || null;
+
+    // 1. Video upload or URL
+    let videoUrl = String(formData.get('videoUrl') || '').trim() || null;
+    const videoFile = formData.get('video');
+    if (videoFile && typeof videoFile !== 'string' && videoFile.size > 0) {
+      try {
+        videoUrl = await uploadMediaToBucket(supabase, videoFile, 'anime-banners', { maxSizeMB: 50 });
+      } catch (vidErr) {
+        return { error: `Video banner yuklashda xatolik: ${vidErr.message}` };
+      }
+    }
+
+    // 2. Image upload or URL
     let imageUrl = null;
-    try {
-      imageUrl = await uploadImageToBucket(supabase, formData.get('image'), 'anime-banners', { maxSizeMB: 5 });
-    } catch (bannerErr) {
-      return { error: `Banner rasmi yuklashda xatolik: ${bannerErr.message}` };
+    const imgFile = formData.get('image');
+    if (imgFile && typeof imgFile !== 'string' && imgFile.size > 0) {
+      try {
+        imageUrl = await uploadMediaToBucket(supabase, imgFile, 'anime-banners', { maxSizeMB: 10 });
+      } catch (bannerErr) {
+        return { error: `Banner rasmi yuklashda xatolik: ${bannerErr.message}` };
+      }
     }
     if (!imageUrl) {
       imageUrl = String(formData.get('imageUrl') || '').trim() || null;
     }
-    if (!imageUrl) return { error: 'Banner rasmi (fayl yoki havola) kiritilishi shart' };
+
+    // Banner must have either image or video
+    if (!imageUrl && !videoUrl) {
+      return { error: 'Banner rasmi yoki video banner (fayl yoki havola) kiritilishi shart' };
+    }
 
     const linkUrl = String(formData.get('linkUrl') || '').trim() || (animeId ? `/anime/${animeId}` : null);
     const subtitle = String(formData.get('subtitle') || '').trim();
@@ -509,19 +529,83 @@ export async function createBanner(prevState, formData) {
       title,
       subtitle: subtitle || null,
       image_url: imageUrl,
+      video_url: videoUrl,
       link_url: linkUrl,
       anime_id: animeId,
       sort_order: sortOrder,
       is_active: isActive,
     });
 
+    if (error) return { error: `Banner saqlashda xatolik: ${error.message}` };
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true, message: `Banner “${title}” muvaffaqiyatli saqlandi ✔` };
+  } catch (e) {
+    return { error: e.message || 'Xatolik yuz berdi' };
+  }
+}
+
+export async function updateBanner(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    await assertAdmin(supabase);
+
+    const id = String(formData.get('id') || '').trim();
+    if (!id) return { error: 'Banner ID topilmadi' };
+
+    const title = String(formData.get('title') || '').trim();
+    if (!title) return { error: 'Banner sarlavhasi kiritilishi shart' };
+
+    const animeId = String(formData.get('anime_id') || '').trim() || null;
+
+    let videoUrl = String(formData.get('videoUrl') || '').trim() || null;
+    const videoFile = formData.get('video');
+    if (videoFile && typeof videoFile !== 'string' && videoFile.size > 0) {
+      try {
+        videoUrl = await uploadMediaToBucket(supabase, videoFile, 'anime-banners', { maxSizeMB: 50 });
+      } catch (vidErr) {
+        return { error: `Video banner yuklashda xatolik: ${vidErr.message}` };
+      }
+    }
+
+    let imageUrl = null;
+    const imgFile = formData.get('image');
+    if (imgFile && typeof imgFile !== 'string' && imgFile.size > 0) {
+      try {
+        imageUrl = await uploadMediaToBucket(supabase, imgFile, 'anime-banners', { maxSizeMB: 10 });
+      } catch (bannerErr) {
+        return { error: `Banner rasmi yuklashda xatolik: ${bannerErr.message}` };
+      }
+    }
+    if (!imageUrl) {
+      imageUrl = String(formData.get('imageUrl') || '').trim() || null;
+    }
+
+    const linkUrl = String(formData.get('linkUrl') || '').trim() || (animeId ? `/anime/${animeId}` : null);
+    const subtitle = String(formData.get('subtitle') || '').trim();
+    const sortOrder = Number(formData.get('sort_order')) || 0;
+    const isActive = formData.get('is_active') === 'on' || formData.get('is_active') === 'true';
+
+    const updates = {
+      title,
+      subtitle: subtitle || null,
+      link_url: linkUrl,
+      anime_id: animeId,
+      sort_order: sortOrder,
+      is_active: isActive,
+    };
+    if (imageUrl) updates.image_url = imageUrl;
+    if (videoUrl !== undefined && videoUrl !== null) updates.video_url = videoUrl;
+
+    const { error } = await supabase.from('banners').update(updates).eq('id', id);
     if (error) return { error: error.message };
 
     revalidatePath('/');
     revalidatePath('/admin');
-    return { message: `Banner “${title}” muvaffaqiyatli saqlandi ✔` };
+    return { success: true, message: `Banner “${title}” yangilandi ✔` };
   } catch (e) {
-    return { error: e.message };
+    return { error: e.message || 'Xatolik yuz berdi' };
   }
 }
 

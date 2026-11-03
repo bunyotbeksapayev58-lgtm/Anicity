@@ -19,7 +19,7 @@ export default async function HomePage({ searchParams }) {
   // 1. Fetch Active Hero Banners with joined anime details
   const { data: bannersRaw } = await supabase
     .from('banners')
-    .select('id, title, subtitle, image_url, link_url, anime_id, sort_order, anime:animes(id, title, description, poster_url, banner_url, genres, rating_avg, year, status, studio)')
+    .select('id, title, subtitle, image_url, video_url, link_url, anime_id, sort_order, anime:animes(id, title, description, poster_url, banner_url, genres, rating_avg, year, status, studio)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 

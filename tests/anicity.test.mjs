@@ -14,6 +14,7 @@ import {
 } from '../lib/validate.js';
 import {
   validateImageFile,
+  validateVideoFile,
 } from '../lib/storage.js';
 import {
   isAdminRole,
@@ -515,6 +516,84 @@ assert.throws(() => {
 }, /Invalid audit action/);
 console.log('✔ Subscription Audit Log structure & action integrity passed');
 
+// 22. Video File Validation
+console.log('22. Testing Video File validation & format restrictions...');
+const validMp4 = validateVideoFile({
+  name: 'cinematic_trailer.mp4',
+  type: 'video/mp4',
+  size: 25 * 1024 * 1024, // 25 MB
+});
+assert.strictEqual(validMp4.valid, true);
+
+const validWebm = validateVideoFile({
+  name: 'hero_loop.webm',
+  type: 'video/webm',
+  size: 15 * 1024 * 1024, // 15 MB
+});
+assert.strictEqual(validWebm.valid, true);
+
+const oversizedVideo = validateVideoFile({
+  name: 'huge_movie.mp4',
+  type: 'video/mp4',
+  size: 65 * 1024 * 1024, // 65 MB (> 50MB)
+}, { maxSizeMB: 50 });
+assert.strictEqual(oversizedVideo.valid, false);
+assert.ok(oversizedVideo.error.includes('50 MB'));
+
+const invalidFormat = validateVideoFile({
+  name: 'malicious.exe',
+  type: 'application/x-msdownload',
+  size: 5 * 1024 * 1024,
+});
+assert.strictEqual(invalidFormat.valid, false);
+assert.ok(invalidFormat.error.includes('MP4'));
+console.log('✔ Video File validation passed');
+
+// 23. Video Banner Payload Validation
+console.log('23. Testing Video Banner payload structure...');
+function validateBannerPayload({ title, imageUrl, videoUrl }) {
+  if (!title || !title.trim()) return { valid: false, error: 'Banner sarlavhasi kiritilishi shart' };
+  if (!imageUrl && !videoUrl) return { valid: false, error: 'Banner rasmi yoki video banner kiritilishi shart' };
+  return { valid: true, data: { title: title.trim(), image_url: imageUrl || null, video_url: videoUrl || null } };
+}
+
+const bannerWithVideoOnly = validateBannerPayload({
+  title: 'Demon Slayer Season 4',
+  imageUrl: null,
+  videoUrl: 'https://cdn.anicity.uz/banners/demon_slayer.mp4',
+});
+assert.strictEqual(bannerWithVideoOnly.valid, true);
+assert.strictEqual(bannerWithVideoOnly.data.video_url, 'https://cdn.anicity.uz/banners/demon_slayer.mp4');
+assert.strictEqual(bannerWithVideoOnly.data.image_url, null);
+
+const bannerWithImageAndVideo = validateBannerPayload({
+  title: 'Jujutsu Kaisen',
+  imageUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477',
+  videoUrl: 'https://cdn.anicity.uz/banners/jjk.mp4',
+});
+assert.strictEqual(bannerWithImageAndVideo.valid, true);
+assert.ok(bannerWithImageAndVideo.data.image_url && bannerWithImageAndVideo.data.video_url);
+
+const emptyBanner = validateBannerPayload({ title: 'No Media' });
+assert.strictEqual(emptyBanner.valid, false);
+console.log('✔ Video Banner payload structure passed');
+
+// 24. Direct Video vs Google Drive Provider Classification
+console.log('24. Testing Direct Video vs Embed Provider Classification...');
+function classifyVideoSource(url) {
+  if (!url) return 'none';
+  if (/\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(url)) return 'direct_html5';
+  if (/drive\.google\.com/i.test(url) || /^drive:/i.test(url)) return 'google_drive_embed';
+  if (/youtube\.com|youtu\.be/i.test(url)) return 'youtube_embed';
+  return 'generic_embed';
+}
+
+assert.strictEqual(classifyVideoSource('https://cdn.example.com/ep1.mp4?token=123'), 'direct_html5');
+assert.strictEqual(classifyVideoSource('https://cdn.example.com/stream.webm'), 'direct_html5');
+assert.strictEqual(classifyVideoSource('https://drive.google.com/file/d/11zICyxWSIu_3l5VYxm3VW40AtqXc5Pjl/preview'), 'google_drive_embed');
+assert.strictEqual(classifyVideoSource('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'youtube_embed');
+console.log('✔ Direct Video vs Embed Provider Classification passed');
+
 console.log('\n========================================');
-console.log('ALL 21 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 24 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');

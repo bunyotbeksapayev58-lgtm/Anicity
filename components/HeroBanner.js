@@ -73,13 +73,30 @@ export default function HeroBanner({ banners = [], fallbackAnime, user, onWatchT
     >
       {/* Background Slides */}
       <div className="hero-pro-backdrop-container">
-        {slides.map((slide, i) => (
-          <div
-            key={slide.id || i}
-            className={`hero-pro-backdrop ${i === index ? 'active' : ''}`}
-            style={{ backgroundImage: `url(${slide.image_url || slide.anime?.banner_url || slide.anime?.poster_url})` }}
-          />
-        ))}
+        {slides.map((slide, i) => {
+          const isActive = i === index;
+          const bgImg = slide.image_url || slide.anime?.banner_url || slide.anime?.poster_url;
+          const hasDirectVideo = slide.video_url && /\.(mp4|webm|mov|mkv)(\?|$)/i.test(slide.video_url);
+
+          return (
+            <div
+              key={slide.id || i}
+              className={`hero-pro-backdrop ${isActive ? 'active' : ''}`}
+              style={{ backgroundImage: bgImg ? `url(${bgImg})` : 'none' }}
+            >
+              {hasDirectVideo && isActive && (
+                <video
+                  src={slide.video_url}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="hero-pro-backdrop-video"
+                />
+              )}
+            </div>
+          );
+        })}
         {/* Cinematic Vignette Overlays */}
         <div className="hero-gradient-overlay-left" />
         <div className="hero-gradient-overlay-bottom" />

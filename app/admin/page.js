@@ -55,7 +55,7 @@ export default async function AdminPage({ searchParams }) {
   // 2. Fetch Banners
   const { data: bannersRaw } = await supabase
     .from('banners')
-    .select('id, title, subtitle, image_url, link_url, sort_order, is_active, anime_id, anime:animes(title)')
+    .select('id, title, subtitle, image_url, video_url, link_url, sort_order, is_active, anime_id, anime:animes(title)')
     .order('sort_order', { ascending: true });
   const banners = bannersRaw || [];
 
@@ -372,10 +372,23 @@ export default async function AdminPage({ searchParams }) {
                 {banners.map((b) => (
                   <div className="li-admin" key={b.id}>
                     <div className="admin-thumb wide">
-                      <img src={b.image_url} alt="" />
+                      {b.image_url ? (
+                        <img src={b.image_url} alt="" />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                          🎥
+                        </div>
+                      )}
                     </div>
                     <div className="admin-info">
-                      <b>{b.title}</b>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <b>{b.title}</b>
+                        {b.video_url && (
+                          <span style={{ fontSize: 11, background: 'rgba(0,206,201,0.15)', color: '#00CEC9', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                            🎥 Video Banner
+                          </span>
+                        )}
+                      </div>
                       <p>
                         Tartib: #{b.sort_order} • Holat: {b.is_active ? 'Faol' : 'O‘chirilgan'} • {b.anime?.title || 'Umumiy'}
                       </p>
