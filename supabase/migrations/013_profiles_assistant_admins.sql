@@ -5,13 +5,13 @@ ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('user', 'moderator', 'admin', 'owner', 'assistant_admin'));
 
-CREATE TABLE public.assistant_admins (
+CREATE TABLE IF NOT EXISTS public.assistant_admins (
   user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   appointed_by uuid NOT NULL REFERENCES public.profiles(id),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.assistant_admin_permissions (
+CREATE TABLE IF NOT EXISTS public.assistant_admin_permissions (
   user_id uuid NOT NULL REFERENCES public.assistant_admins(user_id) ON DELETE CASCADE,
   permission_key text NOT NULL CHECK (permission_key IN (
     'anime_view', 'anime_create', 'anime_edit', 'anime_delete',
@@ -23,7 +23,7 @@ CREATE TABLE public.assistant_admin_permissions (
   PRIMARY KEY (user_id, permission_key)
 );
 
-CREATE TABLE public.assistant_admin_audit_logs (
+CREATE TABLE IF NOT EXISTS public.assistant_admin_audit_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   action_name text NOT NULL,
