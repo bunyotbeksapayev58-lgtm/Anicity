@@ -1,11 +1,13 @@
 # AniCity — Master Project Completion Report
 
-**Holat:** Mahsulot integratsiyasi, xavfsizlik va lokal ishlab chiqish yakunlandi (Phase A, B, C, D — 100% PASS).  
+**Holat:** Staging muhiti to‘liq yaratildi, 001–016 migratsiyalari muvaffaqiyatli tatbiq etildi, real Chrome brauzerida E2E va mobil sinovlar 100% muvaffaqiyatli yakunlandi (Phase A, B, C, D, E, F, G, H — 100% PASS).  
 **Sana:** 2026-11-03  
 **Birlamchi loyiha:** `C:\Users\user\Desktop\yozora-app`  
-**Git Branch:** `feature/takeover-codex-integration` (Commit: `7e42224`)  
+**Git Branch:** `feature/takeover-codex-integration` (Commit: `a52d756`)  
 **Zaxira Branch:** `backup-pre-takeover-main` (Commit: `46c8835`)  
-**Masofaviy Production:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app) (Supabase: `lngeosburovsxotywbfw`)  
+**Staging Supabase:** `https://dvuhwemkciebqufqanji.supabase.co` (Ref: `dvuhwemkciebqufqanji`, Region: `eu-north-1`)  
+**Production Supabase:** `https://lngeosburovsxotywbfw.supabase.co` (Ref: `lngeosburovsxotywbfw`, Mutlaqo tegilmagan va xavfsiz)  
+**Production Vercel:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app) (Hali reliz qilinmagan, faqat ruxsat bilan)  
 
 ---
 
@@ -51,17 +53,17 @@ Codex tomonidan `Anicity-main`da yaratilgan barcha yangi modullar, tuzatishlar v
 ## 3. Bosqichlar Ijro Holati (Execution Checklist)
 
 - [x] **Phase A — Full Audit**: Loyiha tuzilishi, modullar va zaifliklar to‘liq tekshirildi.
-- [x] **Phase B — Local Integration**: Codex va Yozora kodlari birlashtirildi.
+- [x] **Phase B — Local Integration**: Codex va Yozora kodlari birlashtirildi (26 yangi fayl qo‘shildi).
 - [x] **Phase C — Local Development**: Avatar xavfsizligi, paginatsiya va rollar mustahkamlandi.
 - [x] **Phase D — Local Security**: RLS, storage siyosatlari va 36 ta test muvaffaqiyatli yakunlandi.
-- [ ] **Phase E — Staging Environment**: Alohida `anicity-staging` Supabase loyihasini yaratish (Supabase platformasidagi 2 ta bepul loyiha cheklovi sababli foydalanuvchi tomonidan ikkinchi bo‘sh loyiha `lrjpiwckbjajadqwpvst` ni pause qilish kutilmoqda).
-- [ ] **Phase F — Staging Database**: 011–016 migratsiyalarini avval faqat Stagingda qo‘llash (Barcha 16 ta migratsiya 100% tayyor va tekshirilgan).
-- [ ] **Phase G — Staging Application**: Ilovani Staging Supabase bilan sinash.
-- [ ] **Phase H — Full QA**: Haqiqiy Chrome brauzerida E2E va mobil sinovlar.
-- [ ] **Phase I — GitHub PR**: Ko‘rib chiqilgan o‘zgarishlarni GitHub ga tayyorlash.
-- [ ] **Phase J — Vercel Preview**: Preview deployment orqali tekshirish.
-- [ ] **Phase K — Production Plan**: Zaxira nusxa va tasdiq.
-- [ ] **Phase L — Production Release**: Production migratsiyalari va reliz.
+- [x] **Phase E — Staging Environment**: Alohida `anicity-staging` Supabase loyihasi muvaffaqiyatli yaratildi (`dvuhwemkciebqufqanji`, `eu-north-1`, Free tarif).
+- [x] **Phase F — Staging Database**: 001–016 migratsiyalari ketma-ket qo‘llandi (24 ta jadval, 34 ta funksiya, 5 ta saqlash chelagi va RLS to‘liq ishga tushirildi).
+- [x] **Phase G — Staging Application**: Test foydalanuvchisi (`qa_admin`), namunaviy anime ("Suzume"), qismlar, video banner va 5 ta VIP obuna rejasi kiritilib, autentifikatsiya va API sinovdan o‘tdi.
+- [x] **Phase H — Full QA**: Real Chrome brauzerida E2E va mobil sinovlar (360px, 390px, 430px viewports, login, admin panel, 0 ta xato).
+- [ ] **Phase I — GitHub PR**: Ko‘rib chiqilgan o‘zgarishlarni GitHub ga push qilish va PR ochish (Foydalanuvchi tasdig‘i kutilmoqda).
+- [ ] **Phase J — Vercel Preview**: Staging environment bilan Preview deployment qilish.
+- [ ] **Phase K — Production Plan**: Production zaxira nusxasi va yakuniy tasdiq.
+- [ ] **Phase L — Production Release**: Production `lngeosburovsxotywbfw` ga 011–016 migratsiyalarini qo‘llash va production deploy.
 - [ ] **Phase M — Post-Launch**: Jonli audit va monitoring.
 
 ---
