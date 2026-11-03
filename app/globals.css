@@ -2176,12 +2176,14 @@ input:focus, select:focus, textarea:focus {
 }
 .player {
   width: 100%;
-  aspect-ratio: 16/9;
   background: #000;
   border-radius: var(--r-lg);
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.9);
+}
+.player:not(:has(.ani-drive-container)) {
+  aspect-ratio: 16 / 9;
 }
 .player video, .player iframe {
   width: 100%;
@@ -4500,52 +4502,245 @@ input:focus, select:focus, textarea:focus {
   background: #000;
 }
 
-/* Google Drive Iframe Wrapper */
-.ani-drive-player-wrapper {
+/* ============================================================================
+   GOOGLE DRIVE EMBED & CROSS-ORIGIN PLAYER SYSTEM
+   Clean 16:9 bounds, zero overlapping elements over iframe, external controls
+   ============================================================================ */
+.ani-drive-container {
   position: relative;
   width: 100%;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
   background: #000;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.ani-drive-frame-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+  contain: paint;
 }
 
 .ani-drive-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
+  background: #000;
 }
 
-.ani-drive-overlay-controls {
+/* Fullscreen directly on iframe */
+.ani-drive-iframe:fullscreen,
+.ani-drive-iframe:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  background: #000 !important;
+  border: 0 !important;
+}
+
+/* Non-intrusive loading badge (pointer-events: none, placed at top-left away from Google controls) */
+.ani-drive-loading-badge {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 10;
-  pointer-events: auto;
-}
-
-.ani-drive-fs-pill {
+  top: 14px;
+  left: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(18, 18, 28, 0.85);
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(14, 14, 22, 0.88);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  font-size: 13px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 5;
+  pointer-events: none;
+  animation: fadeIn 0.25s ease;
+}
+
+.ani-drive-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Error fallback state with reload button */
+.ani-drive-error-state {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 15, 23, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  z-index: 6;
+  color: #fff;
+}
+
+.ani-drive-error-state .error-icon {
+  font-size: 34px;
+}
+
+.ani-drive-error-state p {
+  font-size: 14px;
+  color: #ff8fa3;
+  margin: 0;
+  max-width: 320px;
+}
+
+/* External Action Bar — Strictly OUTSIDE the interactive iframe area */
+.ani-drive-external-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  background: rgba(14, 14, 22, 0.98);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 44px;
+}
+
+.ani-drive-provider-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.drive-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.drive-provider-label {
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+.ani-drive-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ani-drive-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-height: 34px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  min-height: 40px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
 }
 
-.ani-drive-fs-pill:hover {
+.ani-drive-bar-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.ani-drive-bar-btn.fullscreen {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #c4b5fd;
+}
+
+.ani-drive-bar-btn.fullscreen:hover {
   background: var(--primary);
   border-color: var(--primary);
-  transform: translateY(-2px);
+  color: #fff;
+}
+
+/* Theater / Pseudo-Fullscreen Mode (especially for iOS Safari) */
+.ani-drive-container.is-theater-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  z-index: 999999 !important;
+  background: #000 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ani-drive-container.is-theater-mode .ani-drive-frame-box {
+  flex: 1 1 auto;
+  width: 100vw;
+  height: calc(100vh - 46px);
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.ani-drive-container.is-theater-mode .ani-drive-external-bar {
+  background: #0d0d16;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+  padding: 8px 16px;
+  min-height: 46px;
+}
+
+.ani-theater-exit-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+}
+
+.ani-theater-exit-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
 }
 
 /* Fullscreen Behavior */
@@ -5352,6 +5547,25 @@ input:focus, select:focus, textarea:focus {
   }
   .ani-player-volume-slider {
     display: none; /* Hide volume slider on mobile, keep mute button */
+  }
+}
+
+@media (max-width: 480px) {
+  .ani-drive-external-bar {
+    padding: 7px 10px;
+    gap: 6px;
+  }
+  .ani-drive-provider-tag .drive-provider-label {
+    font-size: 11px;
+  }
+  .ani-drive-bar-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+  .ani-drive-bar-btn svg {
+    width: 13px;
+    height: 13px;
   }
 }
 

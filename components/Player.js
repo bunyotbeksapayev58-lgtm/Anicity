@@ -17,6 +17,24 @@ function formatTime(seconds) {
   return `${m < 10 ? '0' : ''}${m}:${remS < 10 ? '0' : ''}${remS}`;
 }
 
+// Normalizes Google Drive links so they always render correctly via /preview
+function formatDriveUrl(url) {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/drive\.google\.com/i.test(trimmed)) {
+    if (trimmed.includes('/view')) {
+      return trimmed.replace(/\/view(\?.*)?$/i, '/preview');
+    }
+    if (trimmed.includes('/edit')) {
+      return trimmed.replace(/\/edit(\?.*)?$/i, '/preview');
+    }
+    if (!trimmed.endsWith('/preview')) {
+      return trimmed.replace(/\/?$/, '/preview');
+    }
+  }
+  return trimmed;
+}
+
 export default function Player({
   src,
   userId,
@@ -33,10 +51,10 @@ export default function Player({
   const lastSave = useRef(0);
   const supabase = useRef(null);
 
-  const isDirectVideo = /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(src || '');
-  const isDriveVideo = /drive\.google\.com/i.test(src || '');
+  // Distinguish between direct HTML5 video and Google Drive / iframe embeds
+  const isDirectVideo = Boolean(src && /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(src));
 
-  // Playback state
+  // Direct video playback states
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -50,12 +68,20 @@ export default function Player({
   const [errorMessage, setErrorMessage] = useState('');
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
-  // Initialize Supabase client
+  // Google Drive specific states
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+  const [iframeError, setIframeError] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const iframeRef = useRef(null);
+  const driveContainerRef = useRef(null);
+
+  // Initialize Supabase client for saving progress
   useEffect(() => {
     supabase.current = createClient();
   }, []);
 
-  // Save progress
+  // Save progress for direct HTML5 video
   const saveProgress = useCallback(async ({ force = false, completed = false } = {}) => {
     const v = videoRef.current;
     if (!v || !v.duration || !supabase.current || !userId || !episodeId || !animeId) return;
@@ -78,7 +104,7 @@ export default function Player({
     }
   }, [userId, episodeId, animeId]);
 
-  // Video metadata and initial position
+  // Video metadata and initial position (Direct video only)
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !isDirectVideo) return;
@@ -140,11 +166,14 @@ export default function Player({
     };
   }, [src, isDirectVideo, startAt, nextHref, saveProgress]);
 
-  // Fullscreen change listener
+  // Fullscreen change listener (works for both HTML5 and iframe Fullscreen API)
   useEffect(() => {
     const onFsChange = () => {
       const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
       setIsFullscreen(Boolean(fsEl));
+      if (!fsEl && typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock().catch(() => {});
+      }
     };
 
     document.addEventListener('fullscreenchange', onFsChange);
@@ -155,7 +184,7 @@ export default function Player({
     };
   }, []);
 
-  // Controls auto-hide timer
+  // Controls auto-hide timer for direct HTML5 video
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
@@ -176,7 +205,7 @@ export default function Player({
     }
   };
 
-  // Play / Pause toggle
+  // Direct video play/pause
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -190,7 +219,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Skip forward / backward
   const skip = (seconds) => {
     const v = videoRef.current;
     if (!v) return;
@@ -199,7 +227,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Seek bar change
   const handleSeek = (e) => {
     const v = videoRef.current;
     if (!v) return;
@@ -209,7 +236,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Volume change
   const handleVolume = (e) => {
     const v = videoRef.current;
     if (!v) return;
@@ -221,7 +247,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Mute toggle
   const toggleMute = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -236,7 +261,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Speed selection
   const changeSpeed = (speed) => {
     const v = videoRef.current;
     if (!v) return;
@@ -246,7 +270,7 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Fullscreen toggle (works for both HTML5 and Google Drive container!)
+  // Direct HTML5 video fullscreen toggle
   const toggleFullscreen = async () => {
     const container = containerRef.current;
     if (!container) return;
@@ -261,8 +285,6 @@ export default function Player({
           videoRef.current.webkitEnterFullscreen();
         }
         setIsFullscreen(true);
-
-        // Lock to landscape on mobile if supported
         if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
           screen.orientation.lock('landscape').catch(() => {});
         }
@@ -287,7 +309,6 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Retry on error
   const handleRetry = () => {
     setHasError(false);
     setIsLoading(true);
@@ -298,13 +319,11 @@ export default function Player({
     }
   };
 
-  // Keyboard hotkeys on desktop
+  // Direct video desktop hotkeys
   useEffect(() => {
     if (!isDirectVideo) return;
     const onKeyDown = (e) => {
-      // Don't trigger if user is typing in input or textarea
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
@@ -327,212 +346,348 @@ export default function Player({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isDirectVideo, isPlaying, isMuted, isFullscreen]);
 
+  // ============================================================================
+  // GOOGLE DRIVE IFRAME LOGIC (RESPONSIVE, CROSS-ORIGIN SAFE, NON-INTRUSIVE)
+  // ============================================================================
+
+  // Reset loading timer on src change
+  useEffect(() => {
+    if (!isDirectVideo && src) {
+      setIsIframeLoading(true);
+      setIframeError(false);
+
+      // Non-blocking safety fallback: after 10s hide loading spinner
+      const timer = setTimeout(() => {
+        setIsIframeLoading(false);
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [src, isDirectVideo, iframeKey]);
+
+  const handleIframeLoad = () => {
+    setIsIframeLoading(false);
+    setIframeError(false);
+  };
+
+  const handleIframeError = () => {
+    setIsIframeLoading(false);
+    setIframeError(true);
+  };
+
+  const handleReloadIframe = () => {
+    setIsIframeLoading(true);
+    setIframeError(false);
+    setIframeKey((k) => k + 1);
+  };
+
+  // Enter / Exit Theater Mode (especially for iPhone / iOS Safari)
+  const enterTheaterMode = () => {
+    setIsTheaterMode(true);
+    try {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = 'hidden';
+      }
+      if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch (_) {}
+  };
+
+  const exitTheaterMode = () => {
+    setIsTheaterMode(false);
+    try {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+      if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock().catch(() => {});
+      }
+    } catch (_) {}
+  };
+
+  // Fullscreen trigger for Google Drive: Try native iframe.requestFullscreen first, then theater mode fallback
+  const handleDriveFullscreen = async () => {
+    const iframe = iframeRef.current;
+    const isCurrentlyFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+
+    if (isTheaterMode) {
+      exitTheaterMode();
+      return;
+    }
+
+    if (isCurrentlyFs) {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+        if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock().catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Exit fullscreen failed:', err);
+      }
+      return;
+    }
+
+    // 1. Try native element fullscreen directly on the iframe element (Android Chrome & Desktop)
+    if (iframe) {
+      const req =
+        iframe.requestFullscreen ||
+        iframe.webkitRequestFullscreen ||
+        iframe.mozRequestFullScreen ||
+        iframe.msRequestFullscreen;
+
+      if (req && typeof req === 'function') {
+        try {
+          await req.call(iframe);
+          setIsFullscreen(true);
+          if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+          }
+          return;
+        } catch (err) {
+          console.info('iframe.requestFullscreen declined or not permitted, switching to theater mode:', err);
+        }
+      }
+    }
+
+    // 2. Fallback: Theater Mode (pseudo-fullscreen) for iOS Safari & unsupported environments
+    enterTheaterMode();
+  };
+
+  // Close theater mode on Escape key
+  useEffect(() => {
+    if (!isTheaterMode) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        exitTheaterMode();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isTheaterMode]);
+
+  // Clean up body overflow if component unmounts while in theater mode
+  useEffect(() => {
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+    };
+  }, []);
+
   return (
-    <div
-      ref={containerRef}
-      className={`ani-player-wrapper ${isFullscreen ? 'is-fullscreen' : ''}`}
-      onMouseMove={resetControlsTimer}
-      onTouchStart={resetControlsTimer}
-    >
+    <>
       {/* 1. DIRECT HTML5 VIDEO SOURCE */}
       {isDirectVideo ? (
-        <div className="ani-player-inner">
-          <video
-            ref={videoRef}
-            src={src}
-            className="ani-video-element"
-            playsInline
-            preload="metadata"
-            onClick={togglePlay}
-          />
+        <div
+          ref={containerRef}
+          className={`ani-player-wrapper ${isFullscreen ? 'is-fullscreen' : ''}`}
+          onMouseMove={resetControlsTimer}
+          onTouchStart={resetControlsTimer}
+        >
+          <div className="ani-player-inner">
+            <video
+              ref={videoRef}
+              src={src}
+              className="ani-video-element"
+              playsInline
+              preload="metadata"
+              onClick={togglePlay}
+            />
 
-          {/* Buffering Spinner */}
-          {isLoading && !hasError && (
-            <div className="ani-player-spinner-overlay">
-              <div className="ani-player-spinner" />
-              <span>Yuklanmoqda...</span>
-            </div>
-          )}
-
-          {/* Error State with Retry Button */}
-          {hasError && (
-            <div className="ani-player-error-overlay">
-              <span className="error-icon">⚠️</span>
-              <h4>{errorMessage}</h4>
-              <button type="button" className="btn primary sm" onClick={handleRetry}>
-                Qayta urinib ko‘rish
-              </button>
-            </div>
-          )}
-
-          {/* Custom Controls Overlay */}
-          <div
-            className={`ani-player-controls-overlay ${showControls || !isPlaying ? 'visible' : 'hidden'}`}
-            onClick={handleContainerTap}
-          >
-            {/* Top Bar (Title & Fullscreen Exit) */}
-            <div className="ani-player-top-bar" onClick={(e) => e.stopPropagation()}>
-              <div className="ani-player-title-text">
-                <b>{animeTitle}</b> {episodeTitle ? `— ${episodeTitle}` : ''}
+            {/* Buffering Spinner */}
+            {isLoading && !hasError && (
+              <div className="ani-player-spinner-overlay">
+                <div className="ani-player-spinner" />
+                <span>Yuklanmoqda...</span>
               </div>
-              {isFullscreen && (
-                <button
-                  type="button"
-                  className="ani-player-ctrl-btn exit-fs-btn"
-                  onClick={toggleFullscreen}
-                  title="To‘liq ekrandan chiqish"
-                  aria-label="To‘liq ekrandan chiqish"
-                >
-                  ✕ Chiqish
+            )}
+
+            {/* Error State with Retry Button */}
+            {hasError && (
+              <div className="ani-player-error-overlay">
+                <span className="error-icon">⚠️</span>
+                <h4>{errorMessage}</h4>
+                <button type="button" className="btn primary sm" onClick={handleRetry}>
+                  Qayta urinib ko‘rish
                 </button>
-              )}
-            </div>
-
-            {/* Center Play/Pause & Skip Controls */}
-            <div className="ani-player-center-controls" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="ani-player-ctrl-btn skip-btn"
-                onClick={() => skip(-10)}
-                title="10 soniya orqaga"
-                aria-label="10 soniya orqaga"
-              >
-                ↺ 10s
-              </button>
-
-              <button
-                type="button"
-                className="ani-player-center-play-btn"
-                onClick={togglePlay}
-                title={isPlaying ? 'Pauza' : 'Ijro'}
-                aria-label={isPlaying ? 'Pauza' : 'Ijro'}
-              >
-                {isPlaying ? (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                  </svg>
-                ) : (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 3 }}>
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </button>
-
-              <button
-                type="button"
-                className="ani-player-ctrl-btn skip-btn"
-                onClick={() => skip(10)}
-                title="10 soniya oldinga"
-                aria-label="10 soniya oldinga"
-              >
-                10s ↻
-              </button>
-            </div>
-
-            {/* Bottom Bar: Seekbar & Controls */}
-            <div className="ani-player-bottom-bar" onClick={(e) => e.stopPropagation()}>
-              {/* Progress Seek Bar */}
-              <div className="ani-player-seek-container">
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 100}
-                  step="0.1"
-                  value={currentTime}
-                  onChange={handleSeek}
-                  className="ani-player-seek-input"
-                  aria-label="Video vaqtini surish"
-                />
-                <div
-                  className="ani-player-seek-fill"
-                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-                />
               </div>
+            )}
 
-              {/* Control Buttons Row */}
-              <div className="ani-player-buttons-row">
-                {/* Left controls: Play, Volume, Time */}
-                <div className="ani-player-left-group">
+            {/* Custom Controls Overlay */}
+            <div
+              className={`ani-player-controls-overlay ${showControls || !isPlaying ? 'visible' : 'hidden'}`}
+              onClick={handleContainerTap}
+            >
+              {/* Top Bar (Title & Fullscreen Exit) */}
+              <div className="ani-player-top-bar" onClick={(e) => e.stopPropagation()}>
+                <div className="ani-player-title-text">
+                  <b>{animeTitle}</b> {episodeTitle ? `— ${episodeTitle}` : ''}
+                </div>
+                {isFullscreen && (
                   <button
                     type="button"
-                    className="ani-player-ctrl-btn"
-                    onClick={togglePlay}
-                    aria-label={isPlaying ? 'Pauza' : 'Ijro'}
+                    className="ani-player-ctrl-btn exit-fs-btn"
+                    onClick={toggleFullscreen}
+                    title="To‘liq ekrandan chiqish"
+                    aria-label="To‘liq ekrandan chiqish"
                   >
-                    {isPlaying ? '⏸' : '▶'}
+                    ✕ Chiqish
                   </button>
+                )}
+              </div>
 
-                  <div className="ani-player-volume-group">
+              {/* Center Play/Pause & Skip Controls */}
+              <div className="ani-player-center-controls" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="ani-player-ctrl-btn skip-btn"
+                  onClick={() => skip(-10)}
+                  title="10 soniya orqaga"
+                  aria-label="10 soniya orqaga"
+                >
+                  ↺ 10s
+                </button>
+
+                <button
+                  type="button"
+                  className="ani-player-center-play-btn"
+                  onClick={togglePlay}
+                  title={isPlaying ? 'Pauza' : 'Ijro'}
+                  aria-label={isPlaying ? 'Pauza' : 'Ijro'}
+                >
+                  {isPlaying ? (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 3 }}>
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="ani-player-ctrl-btn skip-btn"
+                  onClick={() => skip(10)}
+                  title="10 soniya oldinga"
+                  aria-label="10 soniya oldinga"
+                >
+                  10s ↻
+                </button>
+              </div>
+
+              {/* Bottom Bar: Seekbar & Controls */}
+              <div className="ani-player-bottom-bar" onClick={(e) => e.stopPropagation()}>
+                {/* Progress Seek Bar */}
+                <div className="ani-player-seek-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    step="0.1"
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="ani-player-seek-input"
+                    aria-label="Video vaqtini surish"
+                  />
+                  <div
+                    className="ani-player-seek-fill"
+                    style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                  />
+                </div>
+
+                {/* Control Buttons Row */}
+                <div className="ani-player-buttons-row">
+                  {/* Left controls: Play, Volume, Time */}
+                  <div className="ani-player-left-group">
                     <button
                       type="button"
                       className="ani-player-ctrl-btn"
-                      onClick={toggleMute}
-                      aria-label={isMuted ? 'Ovozni yoqish' : 'Ovozni o‘chirish'}
+                      onClick={togglePlay}
+                      aria-label={isPlaying ? 'Pauza' : 'Ijro'}
                     >
-                      {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+                      {isPlaying ? '⏸' : '▶'}
                     </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolume}
-                      className="ani-player-volume-slider"
-                      aria-label="Ovoz balandligi"
-                    />
+
+                    <div className="ani-player-volume-group">
+                      <button
+                        type="button"
+                        className="ani-player-ctrl-btn"
+                        onClick={toggleMute}
+                        aria-label={isMuted ? 'Ovozni yoqish' : 'Ovozni o‘chirish'}
+                      >
+                        {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolume}
+                        className="ani-player-volume-slider"
+                        aria-label="Ovoz balandligi"
+                      />
+                    </div>
+
+                    <span className="ani-player-time-display">
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
                   </div>
 
-                  <span className="ani-player-time-display">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
-                </div>
+                  {/* Right controls: Speed, Fullscreen */}
+                  <div className="ani-player-right-group">
+                    <div className="ani-player-speed-wrap">
+                      <button
+                        type="button"
+                        className="ani-player-ctrl-btn speed-btn"
+                        onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                        aria-label="Tezlikni tanlash"
+                      >
+                        {playbackSpeed}x
+                      </button>
+                      {showSpeedMenu && (
+                        <div className="ani-player-speed-menu">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className={`ani-speed-item ${playbackSpeed === s ? 'active' : ''}`}
+                              onClick={() => changeSpeed(s)}
+                            >
+                              {s}x
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                {/* Right controls: Speed, Fullscreen */}
-                <div className="ani-player-right-group">
-                  <div className="ani-player-speed-wrap">
                     <button
                       type="button"
-                      className="ani-player-ctrl-btn speed-btn"
-                      onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                      aria-label="Tezlikni tanlash"
+                      className="ani-player-ctrl-btn fs-btn"
+                      onClick={toggleFullscreen}
+                      title={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
+                      aria-label={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
                     >
-                      {playbackSpeed}x
+                      {isFullscreen ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                        </svg>
+                      )}
                     </button>
-                    {showSpeedMenu && (
-                      <div className="ani-player-speed-menu">
-                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            className={`ani-speed-item ${playbackSpeed === s ? 'active' : ''}`}
-                            onClick={() => changeSpeed(s)}
-                          >
-                            {s}x
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
-
-                  <button
-                    type="button"
-                    className="ani-player-ctrl-btn fs-btn"
-                    onClick={toggleFullscreen}
-                    title={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
-                    aria-label={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
-                  >
-                    {isFullscreen ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                      </svg>
-                    )}
-                  </button>
                 </div>
               </div>
             </div>
@@ -540,42 +695,110 @@ export default function Player({
         </div>
       ) : (
         /* 2. GOOGLE DRIVE / IFRAME PLAYER COMPATIBILITY */
-        <div className="ani-drive-player-wrapper">
-          <iframe
-            src={src}
-            className="ani-drive-iframe"
-            allowFullScreen
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            title={episodeTitle ? `${animeTitle} — ${episodeTitle}` : 'Video Player'}
-          />
+        <div
+          ref={driveContainerRef}
+          className={`ani-drive-container ${isTheaterMode ? 'is-theater-mode' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
+        >
+          {/* Responsive 16:9 Frame Box */}
+          <div className="ani-drive-frame-box">
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              src={formatDriveUrl(src)}
+              className="ani-drive-iframe"
+              allowFullScreen
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              title={episodeTitle ? `${animeTitle} — ${episodeTitle}` : 'Google Drive Video Player'}
+              onLoad={handleIframeLoad}
+              onError={handleIframeError}
+            />
 
-          {/* Mobile Fullscreen & Orientation Helper Overlay */}
-          <div className="ani-drive-overlay-controls">
-            <button
-              type="button"
-              className="ani-drive-fs-pill"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? 'To‘liq ekrandan chiqish' : 'Katta ekranga o‘tkazish'}
-            >
-              {isFullscreen ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-                  </svg>
-                  <span>Chiqish</span>
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                  </svg>
-                  <span>To‘liq ekran</span>
-                </>
-              )}
-            </button>
+            {/* Non-intrusive loading badge (pointer-events: none; located at top-left away from Google controls) */}
+            {isIframeLoading && !iframeError && (
+              <div className="ani-drive-loading-badge" aria-live="polite">
+                <div className="ani-drive-spinner" />
+                <span>Video yuklanmoqda...</span>
+              </div>
+            )}
+
+            {/* Error fallback state with reload button */}
+            {iframeError && (
+              <div className="ani-drive-error-state">
+                <span className="error-icon">⚠️</span>
+                <p>Videoni yuklashda xatolik yuz berdi yoki internet sekin.</p>
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  onClick={handleReloadIframe}
+                >
+                  Qayta yuklash
+                </button>
+              </div>
+            )}
+
+            {/* Theater Mode Exit Button (only shown in theater/pseudo-fullscreen mode) */}
+            {isTheaterMode && (
+              <button
+                type="button"
+                className="ani-theater-exit-btn"
+                onClick={exitTheaterMode}
+                title="Katta ekrandan chiqish"
+                aria-label="Katta ekrandan chiqish"
+              >
+                ✕ Chiqish
+              </button>
+            )}
+          </div>
+
+          {/* External Action Bar — strictly OUTSIDE the interactive iframe area */}
+          <div className="ani-drive-external-bar">
+            <div className="ani-drive-provider-tag">
+              <span className="drive-indicator-dot" />
+              <span className="drive-provider-label">Google Drive Player</span>
+            </div>
+
+            <div className="ani-drive-bar-actions">
+              <button
+                type="button"
+                className="ani-drive-bar-btn reload"
+                onClick={handleReloadIframe}
+                title="Videoni qayta yuklash"
+                aria-label="Videoni qayta yuklash"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M23 4v6h-6" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                <span>Yangilash</span>
+              </button>
+
+              <button
+                type="button"
+                className="ani-drive-bar-btn fullscreen"
+                onClick={handleDriveFullscreen}
+                title={isFullscreen || isTheaterMode ? 'Kichraytirish' : 'Katta ekranga o‘tkazish'}
+                aria-label={isFullscreen || isTheaterMode ? 'Kichraytirish' : 'Katta ekranga o‘tkazish'}
+              >
+                {isFullscreen || isTheaterMode ? (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                    </svg>
+                    <span>Kichraytirish</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                    </svg>
+                    <span>Katta ekran</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

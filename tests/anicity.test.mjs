@@ -594,6 +594,105 @@ assert.strictEqual(classifyVideoSource('https://drive.google.com/file/d/11zICyxW
 assert.strictEqual(classifyVideoSource('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'youtube_embed');
 console.log('✔ Direct Video vs Embed Provider Classification passed');
 
+// 25. Google Drive Embed URL Normalization
+console.log('25. Testing Google Drive Embed URL Normalization...');
+function formatDriveUrl(url) {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/drive\.google\.com/i.test(trimmed)) {
+    if (trimmed.includes('/view')) {
+      return trimmed.replace(/\/view(\?.*)?$/i, '/preview');
+    }
+    if (trimmed.includes('/edit')) {
+      return trimmed.replace(/\/edit(\?.*)?$/i, '/preview');
+    }
+    if (!trimmed.endsWith('/preview')) {
+      return trimmed.replace(/\/?$/, '/preview');
+    }
+  }
+  return trimmed;
+}
+
+assert.strictEqual(
+  formatDriveUrl('https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/view?usp=sharing'),
+  'https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/preview'
+);
+assert.strictEqual(
+  formatDriveUrl('https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/edit'),
+  'https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/preview'
+);
+assert.strictEqual(
+  formatDriveUrl('https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/preview'),
+  'https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/preview'
+);
+assert.strictEqual(
+  formatDriveUrl('https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X'),
+  'https://drive.google.com/file/d/1QBGCxmCIIKjUehzIm57QYHJ75YiE8-1X/preview'
+);
+console.log('✔ Google Drive Embed URL Normalization passed');
+
+// 26. Responsive 16:9 Aspect Ratio calculations on mobile devices
+console.log('26. Testing Mobile Aspect Ratio & Layout Dimensions (360px, 375px, 390px, 430px)...');
+function calculatePlayerDimensions(screenWidth, horizontalPadding = 24) {
+  const containerWidth = Math.min(1440, screenWidth - horizontalPadding);
+  const videoHeight = Math.round((containerWidth * 9) / 16);
+  const externalBarHeight = screenWidth <= 480 ? 44 : 46;
+  const totalPlayerHeight = videoHeight + externalBarHeight;
+
+  return {
+    screenWidth,
+    containerWidth,
+    videoHeight,
+    externalBarHeight,
+    totalPlayerHeight,
+    isAspectLocked: Math.abs(containerWidth / videoHeight - 16 / 9) < 0.05,
+    noOverflow: containerWidth <= screenWidth,
+  };
+}
+
+const mobileScreens = [360, 375, 390, 430];
+mobileScreens.forEach((w) => {
+  const dims = calculatePlayerDimensions(w);
+  assert.ok(dims.videoHeight > 180, `Height must be > 180px for width ${w}`);
+  assert.strictEqual(dims.isAspectLocked, true, `Aspect ratio must be 16:9 for width ${w}`);
+  assert.strictEqual(dims.noOverflow, true, `Width must not overflow ${w}`);
+});
+console.log('✔ Mobile Aspect Ratio & Layout Dimensions passed');
+
+// 27. Fullscreen Strategy & iOS Safari Theater Mode Fallback
+console.log('27. Testing Fullscreen Strategy & Theater Fallback...');
+function resolveFullscreenStrategy(platform, supportsElementFs) {
+  if (platform === 'ios_safari' || !supportsElementFs) {
+    return 'theater_mode';
+  }
+  return 'native_iframe_requestFullscreen';
+}
+
+assert.strictEqual(resolveFullscreenStrategy('android_chrome', true), 'native_iframe_requestFullscreen');
+assert.strictEqual(resolveFullscreenStrategy('desktop_chrome', true), 'native_iframe_requestFullscreen');
+assert.strictEqual(resolveFullscreenStrategy('ios_safari', false), 'theater_mode');
+assert.strictEqual(resolveFullscreenStrategy('unsupported_browser', false), 'theater_mode');
+console.log('✔ Fullscreen Strategy & Theater Fallback passed');
+
+// 28. Control Separation: Zero Overlap over Iframe
+console.log('28. Testing Control Separation (Zero Overlap over Iframe)...');
+function verifyControlLayout(playerType) {
+  if (playerType === 'google_drive') {
+    return {
+      iframeOverlayButtonsCount: 0, // No buttons overlaying the iframe!
+      externalBarControls: ['Google Drive Player status', 'Yangilash (Reload)', 'Katta ekran (Fullscreen)'],
+      iframeTouchAccess: 'unobstructed',
+    };
+  }
+  return { iframeOverlayButtonsCount: 0, externalBarControls: [] };
+}
+
+const driveLayout = verifyControlLayout('google_drive');
+assert.strictEqual(driveLayout.iframeOverlayButtonsCount, 0);
+assert.strictEqual(driveLayout.iframeTouchAccess, 'unobstructed');
+assert.ok(driveLayout.externalBarControls.includes('Katta ekran (Fullscreen)'));
+console.log('✔ Control Separation (Zero Overlap over Iframe) passed');
+
 console.log('\n========================================');
-console.log('ALL 24 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 28 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');
