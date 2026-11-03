@@ -54,8 +54,8 @@ Codex tomonidan `Anicity-main`da yaratilgan barcha yangi modullar, tuzatishlar v
 - [x] **Phase B — Local Integration**: Codex va Yozora kodlari birlashtirildi.
 - [x] **Phase C — Local Development**: Avatar xavfsizligi, paginatsiya va rollar mustahkamlandi.
 - [x] **Phase D — Local Security**: RLS, storage siyosatlari va 36 ta test muvaffaqiyatli yakunlandi.
-- [ ] **Phase E — Staging Environment**: Alohida `anicity-staging` Supabase loyihasini yaratish (Foydalanuvchi tasdig‘i kutilmoqda).
-- [ ] **Phase F — Staging Database**: 011–016 migratsiyalarini avval faqat Stagingda qo‘llash.
+- [ ] **Phase E — Staging Environment**: Alohida `anicity-staging` Supabase loyihasini yaratish (Supabase platformasidagi 2 ta bepul loyiha cheklovi sababli foydalanuvchi tomonidan ikkinchi bo‘sh loyiha `lrjpiwckbjajadqwpvst` ni pause qilish kutilmoqda).
+- [ ] **Phase F — Staging Database**: 011–016 migratsiyalarini avval faqat Stagingda qo‘llash (Barcha 16 ta migratsiya 100% tayyor va tekshirilgan).
 - [ ] **Phase G — Staging Application**: Ilovani Staging Supabase bilan sinash.
 - [ ] **Phase H — Full QA**: Haqiqiy Chrome brauzerida E2E va mobil sinovlar.
 - [ ] **Phase I — GitHub PR**: Ko‘rib chiqilgan o‘zgarishlarni GitHub ga tayyorlash.
