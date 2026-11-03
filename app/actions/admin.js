@@ -656,3 +656,345 @@ export async function toggleUserSuspension(formData) {
 
   revalidatePath('/admin');
 }
+
+// ==========================================
+// 6. OBUNA PLANLARI VA BOSHQARUVI (SUBSCRIPTIONS)
+// ==========================================
+
+export async function createSubscriptionPlan(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    await assertAdmin(supabase);
+
+    const name = String(formData.get('name') || '').trim();
+    if (!name) return { error: 'Plan nomi kiritilishi shart' };
+
+    const slug = String(formData.get('slug') || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') || `plan_${Date.now()}`;
+    const description = String(formData.get('description') || '').trim();
+    const priceUzs = Math.max(0, parseInt(formData.get('price_uzs') || '0', 10));
+    const durationDays = Math.max(1, parseInt(formData.get('duration_days') || '30', 10));
+    const isPopular = formData.get('is_popular') === 'true' || formData.get('is_popular') === 'on';
+    const isActive = formData.get('is_active') !== 'false';
+    const sortOrder = parseInt(formData.get('sort_order') || '0', 10) || 0;
+
+    const rawBenefits = String(formData.get('benefits') || '');
+    const benefits = rawBenefits
+      .split('\n')
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+    const { error } = await supabase.from('subscription_plans').insert({
+      name,
+      slug,
+      description: description || null,
+      price_uzs: priceUzs,
+      duration_days: durationDays,
+      benefits,
+      is_popular: isPopular,
+      is_active: isActive,
+      sort_order: sortOrder,
+    });
+
+    if (error) return { error: `Plan yaratishda xatolik: ${error.message}` };
+
+    revalidatePath('/admin');
+    revalidatePath('/premium');
+    return { success: true, message: `“${name}” tarifi muvaffaqiyatli yaratildi ✔` };
+  } catch (e) {
+    return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
+  }
+}
+
+export async function updateSubscriptionPlan(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    await assertAdmin(supabase);
+
+    const id = String(formData.get('id') || '').trim();
+    if (!id) return { error: 'Plan ID topilmadi' };
+
+    const name = String(formData.get('name') || '').trim();
+    if (!name) return { error: 'Plan nomi kiritilishi shart' };
+
+    const description = String(formData.get('description') || '').trim();
+    const priceUzs = Math.max(0, parseInt(formData.get('price_uzs') || '0', 10));
+    const durationDays = Math.max(1, parseInt(formData.get('duration_days') || '30', 10));
+    const isPopular = formData.get('is_popular') === 'true' || formData.get('is_popular') === 'on';
+    const isActive = formData.get('is_active') !== 'false' && formData.get('is_active') !== 'off';
+    const sortOrder = parseInt(formData.get('sort_order') || '0', 10) || 0;
+
+    const rawBenefits = String(formData.get('benefits') || '');
+    const benefits = rawBenefits
+      .split('\n')
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+    const { error } = await supabase.from('subscription_plans').update({
+      name,
+      description: description || null,
+      price_uzs: priceUzs,
+      duration_days: durationDays,
+      benefits,
+      is_popular: isPopular,
+      is_active: isActive,
+      sort_order: sortOrder,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+
+    if (error) return { error: `Plan yangilashda xatolik: ${error.message}` };
+
+    revalidatePath('/admin');
+    revalidatePath('/premium');
+    return { success: true, message: `“${name}” tarifi muvaffaqiyatli yangilandi ✔` };
+  } catch (e) {
+    return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
+  }
+}
+
+export async function togglePlanActive(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+  const currentActive = formData.get('active') === 'true';
+
+  await supabase.from('subscription_plans').update({
+    is_active: !currentActive,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+
+  revalidatePath('/admin');
+  revalidatePath('/premium');
+}
+
+export async function deleteSubscriptionPlan(formData) {
+  const supabase = await createClient();
+  await assertAdmin(supabase);
+  const id = String(formData.get('id'));
+
+  await supabase.from('subscription_plans').delete().eq('id', id);
+
+  revalidatePath('/admin');
+  revalidatePath('/premium');
+}
+
+// 7. FOYDALANUVCHILARGA OBUNANI QO'LDA BERISH VA BEKOR QILISH
+export async function grantUserSubscription(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    const adminUser = await assertAdmin(supabase);
+
+    const userId = String(formData.get('user_id') || '').trim();
+    if (!userId) return { error: 'Foydalanuvchi tanlanishi shart' };
+
+    const planId = String(formData.get('plan_id') || '').trim();
+    const customDays = parseInt(formData.get('duration_days') || '0', 10);
+    const notes = String(formData.get('notes') || 'Admin tomonidan taqdim etildi').trim();
+
+    // 1. Get Plan
+    let plan = null;
+    if (planId) {
+      const { data } = await supabase.from('subscription_plans').select('*').eq('id', planId).maybeSingle();
+      plan = data;
+    }
+
+    const durationDays = customDays > 0 ? customDays : (plan?.duration_days || 30);
+    const planName = plan?.name || `${durationDays} kunlik VIP`;
+
+    // 2. Target user profile
+    const { data: targetProfile, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, username, subscription_plan, subscription_expires_at')
+      .eq('id', userId)
+      .single();
+
+    if (profErr || !targetProfile) {
+      return { error: 'Foydalanuvchi profili topilmadi' };
+    }
+
+    // 3. Compute Dates
+    const now = new Date();
+    let startsAt = now;
+    // If user already has an active VIP, extend from current expiration date
+    if (
+      targetProfile.subscription_plan === 'vip' &&
+      targetProfile.subscription_expires_at &&
+      new Date(targetProfile.subscription_expires_at) > now
+    ) {
+      startsAt = new Date(targetProfile.subscription_expires_at);
+    }
+    const expiresAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    // 4. Insert into user_subscriptions
+    const { error: subErr } = await supabase.from('user_subscriptions').insert({
+      user_id: userId,
+      plan_id: plan?.id || null,
+      plan_name: planName,
+      status: 'active',
+      starts_at: startsAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      grant_type: 'manual_admin',
+      granted_by: adminUser.id,
+      notes: notes,
+    });
+
+    if (subErr) return { error: `Obunani saqlashda xatolik: ${subErr.message}` };
+
+    // 5. Update profiles table
+    await supabase.from('profiles').update({
+      subscription_plan: 'vip',
+      subscription_expires_at: expiresAt.toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+
+    // 6. Record Audit Log
+    await supabase.from('subscription_audit_logs').insert({
+      admin_id: adminUser.id,
+      user_id: userId,
+      action: 'grant',
+      previous_plan: targetProfile.subscription_plan || 'free',
+      previous_expires_at: targetProfile.subscription_expires_at,
+      new_plan: planName,
+      new_expires_at: expiresAt.toISOString(),
+      reason: notes,
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/profile');
+    revalidatePath('/premium');
+
+    return {
+      success: true,
+      message: `@${targetProfile.username || 'Foydalanuvchi'} ga “${planName}” muvaffaqiyatli berildi! Tugash vaqti: ${expiresAt.toLocaleDateString('uz-UZ')} ✔`,
+    };
+  } catch (e) {
+    return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
+  }
+}
+
+export async function extendUserSubscription(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    const adminUser = await assertAdmin(supabase);
+
+    const subscriptionId = String(formData.get('subscription_id') || '').trim();
+    const userId = String(formData.get('user_id') || '').trim();
+    const extendDays = parseInt(formData.get('extend_days') || '30', 10);
+    const reason = String(formData.get('reason') || 'Admin tomonidan uzaytirildi').trim();
+
+    if (!userId) return { error: 'Foydalanuvchi ID topilmadi' };
+
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, username, subscription_plan, subscription_expires_at')
+      .eq('id', userId)
+      .single();
+
+    const now = new Date();
+    let baseDate = now;
+    if (targetProfile?.subscription_expires_at && new Date(targetProfile.subscription_expires_at) > now) {
+      baseDate = new Date(targetProfile.subscription_expires_at);
+    }
+    const newExpiresAt = new Date(baseDate.getTime() + extendDays * 24 * 60 * 60 * 1000);
+
+    // Update active subscription
+    if (subscriptionId) {
+      await supabase.from('user_subscriptions').update({
+        expires_at: newExpiresAt.toISOString(),
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      }).eq('id', subscriptionId);
+    }
+
+    // Update profile
+    await supabase.from('profiles').update({
+      subscription_plan: 'vip',
+      subscription_expires_at: newExpiresAt.toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+
+    // Audit log
+    await supabase.from('subscription_audit_logs').insert({
+      admin_id: adminUser.id,
+      user_id: userId,
+      action: 'extend',
+      previous_plan: targetProfile?.subscription_plan || 'free',
+      previous_expires_at: targetProfile?.subscription_expires_at,
+      new_plan: 'vip',
+      new_expires_at: newExpiresAt.toISOString(),
+      reason: `${extendDays} kunga uzaytirildi: ${reason}`,
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/profile');
+    revalidatePath('/premium');
+
+    return {
+      success: true,
+      message: `Obuna muddati +${extendDays} kunga muvaffaqiyatli uzaytirildi ✔`,
+    };
+  } catch (e) {
+    return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
+  }
+}
+
+export async function revokeUserSubscription(prevState, formData) {
+  try {
+    const supabase = await createClient();
+    const adminUser = await assertAdmin(supabase);
+
+    const subscriptionId = String(formData.get('subscription_id') || '').trim();
+    const userId = String(formData.get('user_id') || '').trim();
+    const reason = String(formData.get('reason') || 'Admin tomonidan bekor qilindi').trim();
+
+    if (!userId) return { error: 'Foydalanuvchi ID topilmadi' };
+
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, username, subscription_plan, subscription_expires_at')
+      .eq('id', userId)
+      .single();
+
+    // Mark subscription as cancelled
+    if (subscriptionId) {
+      await supabase.from('user_subscriptions').update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      }).eq('id', subscriptionId);
+    } else {
+      await supabase.from('user_subscriptions').update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', userId).eq('status', 'active');
+    }
+
+    // Update profile back to free
+    await supabase.from('profiles').update({
+      subscription_plan: 'free',
+      subscription_expires_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+
+    // Audit log
+    await supabase.from('subscription_audit_logs').insert({
+      admin_id: adminUser.id,
+      user_id: userId,
+      action: 'revoke',
+      previous_plan: targetProfile?.subscription_plan || 'vip',
+      previous_expires_at: targetProfile?.subscription_expires_at,
+      new_plan: 'free',
+      new_expires_at: null,
+      reason,
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/profile');
+    revalidatePath('/premium');
+
+    return {
+      success: true,
+      message: `@${targetProfile?.username || 'Foydalanuvchi'} ning VIP obunasi bekor qilindi ✔`,
+    };
+  } catch (e) {
+    return { error: e.message || 'Kutilmagan xatolik yuz berdi' };
+  }
+}

@@ -24,7 +24,15 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single();
 
-  // 2. Fetch Watch History (Ko'rish tarixi)
+  // 2. Fetch User Subscriptions History
+  const { data: userSubsRaw } = await supabase
+    .from('user_subscriptions')
+    .select('id, plan_name, status, starts_at, expires_at, grant_type, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  const userSubs = userSubsRaw || [];
+
+  // 3. Fetch Watch History (Ko'rish tarixi)
   const { data: historyRaw } = await supabase
     .from('watch_progress')
     .select('position_sec, duration_sec, updated_at, episode_id, anime_id, episodes(number, title, anime_id, animes(id, title, poster_url, year, status, genres, rating_avg))')
@@ -34,7 +42,7 @@ export default async function ProfilePage() {
 
   const historyList = (historyRaw || []).filter((h) => h.episodes?.animes);
 
-  // 3. Fetch Favorites (Saqlangan animelar)
+  // 4. Fetch Favorites (Saqlangan animelar)
   const { data: favoritesRaw } = await supabase
     .from('favorites')
     .select('created_at, animes(id, title, poster_url, year, status, genres, rating_avg, studio, view_count)')
@@ -44,8 +52,20 @@ export default async function ProfilePage() {
 
   const favoritesList = (favoritesRaw || []).map((f) => f.animes).filter(Boolean);
 
-  const isVip = profile?.subscription_plan === 'vip';
-  const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Yaqinda';
+  const now = new Date();
+  const isVip =
+    profile?.subscription_plan === 'vip' &&
+    (!profile.subscription_expires_at || new Date(profile.subscription_expires_at) > now);
+
+  const expDate = profile?.subscription_expires_at ? new Date(profile.subscription_expires_at) : null;
+  let daysLeft = null;
+  if (isVip && expDate) {
+    daysLeft = Math.max(1, Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  }
+
+  const joinDate = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Yaqinda';
 
   return (
     <div className="profile-page-wrapper">
@@ -54,7 +74,7 @@ export default async function ProfilePage() {
         <div className="profile-hero-bg-blur" />
         <div className="profile-header-content">
           <div className="profile-avatar-large">
-            <div className="avatar-big-circle">
+            <div className={`avatar-big-circle ${isVip ? 'has-vip-ring' : ''}`}>
               {(profile?.username || user.email || 'A').charAt(0).toUpperCase()}
             </div>
             {isVip && <span className="avatar-vip-crown" title="VIP A’zo">👑</span>}
@@ -87,7 +107,7 @@ export default async function ProfilePage() {
               </Link>
             ) : (
               <div className="vip-renew-info">
-                <span>VIP Holat: Faol</span>
+                <span>VIP Holat: Faol {daysLeft !== null && `(${daysLeft} kun qoldi)`}</span>
                 <Link href="/premium" className="renew-link">Uzatish</Link>
               </div>
             )}
@@ -105,20 +125,63 @@ export default async function ProfilePage() {
             </h3>
             <p className="sub-banner-desc">
               {isVip
-                ? 'Sizda 1080p Full HD video ijrosi, reklamasiz rejim va erta premyeraga kirish faol.'
+                ? `Sizda 1080p Full HD video ijrosi, 0 soniya reklamasiz rejim va barcha premyeralar faol. Tugash muddati: ${expDate ? expDate.toLocaleDateString('uz-UZ') : 'Cheksiz'} (${daysLeft || 0} kun qoldi).`
                 : '1080p Full HD sifat va reklamasiz silliq ko‘rish uchun VIP tarifiga o‘ting.'}
             </p>
           </div>
         </div>
         <div className="sub-banner-right">
           <Link href="/premium" className="btn-manage-sub">
-            {isVip ? 'Tarifni boshqarish' : 'VIPga ko‘tarish'}
+            {isVip ? 'Tarifni boshqarish / Uzatish' : '👑 VIPga ko‘tarish'}
           </Link>
         </div>
       </div>
 
+      {/* Subscription History on Profile (if any) */}
+      {userSubs.length > 0 && (
+        <section className="profile-section" style={{ marginTop: 24 }}>
+          <div className="section-title-row">
+            <div className="title-with-icon">
+              <span className="sec-icon">📜</span>
+              <h2 className="sec-title">Obunalar Tarixi</h2>
+            </div>
+            <span className="sec-count">{userSubs.length} ta yozuv</span>
+          </div>
+
+          <div className="table-wrapper-pro" style={{ marginTop: 12 }}>
+            <table className="pro-table">
+              <thead>
+                <tr>
+                  <th>Tarif</th>
+                  <th>Boshlangan sana</th>
+                  <th>Tugash sanasi</th>
+                  <th>Holati</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userSubs.map((sub) => {
+                  const active = sub.status === 'active' && new Date(sub.expires_at) > now;
+                  return (
+                    <tr key={sub.id}>
+                      <td><b>{sub.plan_name}</b></td>
+                      <td>{new Date(sub.starts_at).toLocaleDateString('uz-UZ')}</td>
+                      <td>{new Date(sub.expires_at).toLocaleDateString('uz-UZ')}</td>
+                      <td>
+                        <span className={active ? 'badge-published' : 'badge-draft'}>
+                          {active ? '● Faol' : '⌛ Yakunlangan'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* Watch History Section */}
-      <section className="profile-section">
+      <section className="profile-section" style={{ marginTop: 32 }}>
         <div className="section-title-row">
           <div className="title-with-icon">
             <span className="sec-icon">🕒</span>
@@ -178,7 +241,7 @@ export default async function ProfilePage() {
       </section>
 
       {/* Saved / Favorites Section */}
-      <section className="profile-section">
+      <section className="profile-section" style={{ marginTop: 32 }}>
         <div className="section-title-row">
           <div className="title-with-icon">
             <span className="sec-icon">🔖</span>
@@ -190,56 +253,18 @@ export default async function ProfilePage() {
         </div>
 
         {favoritesList.length > 0 ? (
-          <div className="anime-catalog-grid">
-            {favoritesList.map((anime) => (
-              <div key={anime.id} className="catalog-grid-item">
-                <AnimeCard anime={anime} />
-              </div>
+          <div className="anime-grid-pro">
+            {favoritesList.map((a) => (
+              <AnimeCard key={a.id} anime={a} />
             ))}
           </div>
         ) : (
           <div className="profile-empty-tab">
-            <span className="empty-ico">⭐</span>
-            <p>Siz hali hech qaysi animeni sevimlilarga qo‘shmadingiz.</p>
+            <span className="empty-ico">🔖</span>
+            <p>Siz hali hech qanday animeni saqlamadingiz.</p>
             <Link href="/catalog" className="btn-ghost-sm">Animelarni ko‘rish</Link>
           </div>
         )}
-      </section>
-
-      {/* Devices / Active Sessions Section */}
-      <section className="profile-section">
-        <div className="section-title-row">
-          <div className="title-with-icon">
-            <span className="sec-icon">📱</span>
-            <h2 className="sec-title">Faol Qurilmalar va Sessiyalar</h2>
-          </div>
-        </div>
-
-        <div className="devices-list-card">
-          <div className="device-item current">
-            <div className="device-icon">💻</div>
-            <div className="device-info">
-              <div className="device-name">
-                Joriy Brauzer Sessiyasi <span className="current-badge">Joriy</span>
-              </div>
-              <div className="device-meta">
-                Web brauzer • Faol holatda • Anicity Web Player
-              </div>
-            </div>
-            <span className="status-online-dot">Online</span>
-          </div>
-
-          <div className="device-item">
-            <div className="device-icon">📱</div>
-            <div className="device-info">
-              <div className="device-name">Mobil Brauzer / Mobil Ilova</div>
-              <div className="device-meta">
-                Android / iOS Webview mosligi ta’minlangan
-              </div>
-            </div>
-            <span className="device-ready-tag">Mos</span>
-          </div>
-        </div>
       </section>
     </div>
   );

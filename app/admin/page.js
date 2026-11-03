@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import AdminAnimeSection from '@/components/AdminAnimeSection';
 import AdminBannerForm from '@/components/AdminBannerForm';
 import AdminTrailerForm from '@/components/AdminTrailerForm';
+import AdminSubscriptionPlans from '@/components/AdminSubscriptionPlans';
+import AdminUserSubscriptions from '@/components/AdminUserSubscriptions';
 import {
   deleteBanner,
   toggleBannerActive,
@@ -67,17 +69,43 @@ export default async function AdminPage({ searchParams }) {
   // 4. Fetch Users (Profiles)
   const { data: usersRaw } = await supabase
     .from('profiles')
-    .select('id, username, display_name, role, subscription_plan, suspended_at, created_at')
+    .select('id, username, display_name, role, subscription_plan, subscription_expires_at, suspended_at, created_at')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(100);
   const users = usersRaw || [];
+
+  // 5. Fetch Subscription Plans
+  const { data: plansRaw } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  const plans = plansRaw || [];
+
+  // 6. Fetch User Subscriptions
+  const { data: subscriptionsRaw } = await supabase
+    .from('user_subscriptions')
+    .select('id, user_id, plan_id, plan_name, status, starts_at, expires_at, grant_type, notes, created_at, user:profiles!user_subscriptions_user_id_fkey(username, display_name)')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  const subscriptions = subscriptionsRaw || [];
+
+  // 7. Fetch Subscription Audit Logs
+  const { data: auditLogsRaw } = await supabase
+    .from('subscription_audit_logs')
+    .select('id, admin_id, user_id, action, previous_plan, previous_expires_at, new_plan, new_expires_at, reason, created_at, admin:profiles!subscription_audit_logs_admin_id_fkey(username), user:profiles!subscription_audit_logs_user_id_fkey(username)')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  const auditLogs = auditLogsRaw || [];
 
   // Stats calculation
   const totalAnimes = animes.length;
   const totalEpisodes = animes.reduce((acc, a) => acc + (Array.isArray(a.episodes) ? a.episodes.length : 0), 0);
   const totalViews = animes.reduce((acc, a) => acc + (Number(a.view_count) || 0), 0);
   const totalUsers = users.length;
-  const totalVipUsers = users.filter((u) => u?.subscription_plan === 'vip').length;
+  const now = new Date();
+  const totalVipUsers = users.filter(
+    (u) => u?.subscription_plan === 'vip' && (!u.subscription_expires_at || new Date(u.subscription_expires_at) > now)
+  ).length;
 
   return (
     <div className="admin-page-container">
@@ -91,12 +119,15 @@ export default async function AdminPage({ searchParams }) {
             Anibla darajasidagi to‘liq streaming boshqaruv tizimi • Kirgan admin: <b>{currentUsername}</b> ({currentRole})
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/" className="btn ghost sm">
             ← Saytni ochish
           </Link>
           <Link href="/catalog" className="btn ghost sm">
             🎬 Katalog
+          </Link>
+          <Link href="/premium" className="btn primary sm" target="_blank">
+            👑 VIP Tariflar
           </Link>
         </div>
       </div>
@@ -112,11 +143,17 @@ export default async function AdminPage({ searchParams }) {
         <Link href="/admin?tab=episodes" className={`admin-tab-btn ${tab === 'episodes' ? 'active' : ''}`}>
           📺 Qismlar ({totalEpisodes})
         </Link>
+        <Link href="/admin?tab=subscriptions" className={`admin-tab-btn ${tab === 'subscriptions' ? 'active' : ''}`}>
+          👑 Obunalarni Boshqarish ({totalVipUsers})
+        </Link>
+        <Link href="/admin?tab=plans" className={`admin-tab-btn ${tab === 'plans' ? 'active' : ''}`}>
+          📋 Obuna Tariflari ({plans.length})
+        </Link>
         <Link href="/admin?tab=schedule" className={`admin-tab-btn ${tab === 'schedule' ? 'active' : ''}`}>
-          📅 Chiqish Jadvali
+          📅 Jadval
         </Link>
         <Link href="/admin?tab=banners" className={`admin-tab-btn ${tab === 'banners' ? 'active' : ''}`}>
-          🖼️ Hero Banners ({banners.length})
+          🖼️ Banners ({banners.length})
         </Link>
         <Link href="/admin?tab=trailers" className={`admin-tab-btn ${tab === 'trailers' ? 'active' : ''}`}>
           🎞️ Treylerlar ({trailers.length})
@@ -125,7 +162,7 @@ export default async function AdminPage({ searchParams }) {
           👥 Foydalanuvchilar ({totalUsers})
         </Link>
         <Link href="/admin?tab=telegram" className={`admin-tab-btn ${tab === 'telegram' ? 'active' : ''}`}>
-          📢 Telegram Post
+          📢 Telegram
         </Link>
       </div>
 
@@ -158,7 +195,7 @@ export default async function AdminPage({ searchParams }) {
               </div>
             </div>
 
-            <div className="metric-box">
+            <div className="metric-box highlight">
               <span className="metric-icon">👑</span>
               <div className="metric-info">
                 <span className="metric-val">{totalVipUsers}</span>
@@ -174,7 +211,7 @@ export default async function AdminPage({ searchParams }) {
               </div>
             </div>
 
-            <div className="metric-box highlight">
+            <div className="metric-box">
               <span className="metric-icon">🟢</span>
               <div className="metric-info">
                 <span className="metric-val">100% OK</span>
@@ -230,14 +267,17 @@ export default async function AdminPage({ searchParams }) {
                 <Link href="/admin?tab=episodes" className="btn ghost">
                   📺 Qismlar Boshqaruvi (2-bosqich)
                 </Link>
+                <Link href="/admin?tab=subscriptions" className="btn ghost">
+                  👑 Obunalarni Boshqarish va VIP Berish
+                </Link>
+                <Link href="/admin?tab=plans" className="btn ghost">
+                  📋 Obuna Tariflarini Sozlash
+                </Link>
                 <Link href="/admin?tab=schedule" className="btn ghost">
                   📅 Haftalik Chiqish Jadvalini Sozlash
                 </Link>
                 <Link href="/admin?tab=banners" className="btn ghost">
                   🖼️ Bosh Sahifa Hero Bannerlarini Yangilash
-                </Link>
-                <Link href="/admin?tab=trailers" className="btn ghost">
-                  🎞️ Treyler va Premyeralar Qo‘shish
                 </Link>
               </div>
             </div>
@@ -255,7 +295,22 @@ export default async function AdminPage({ searchParams }) {
         <AdminAnimeSection animes={animes} initialSubTab="episodes" initialAnimeId={targetAnimeId} />
       )}
 
-      {/* ================= TAB 4: SCHEDULE ================= */}
+      {/* ================= TAB 4: SUBSCRIPTION MANAGEMENT ================= */}
+      {tab === 'subscriptions' && (
+        <AdminUserSubscriptions
+          users={users}
+          plans={plans}
+          subscriptions={subscriptions}
+          auditLogs={auditLogs}
+        />
+      )}
+
+      {/* ================= TAB 5: SUBSCRIPTION PLANS ================= */}
+      {tab === 'plans' && (
+        <AdminSubscriptionPlans plans={plans} />
+      )}
+
+      {/* ================= TAB 6: SCHEDULE ================= */}
       {tab === 'schedule' && (
         <div className="admin-schedule-view">
           <div className="card admin-pane" style={{ marginBottom: 20 }}>
@@ -301,7 +356,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 5: BANNERS ================= */}
+      {/* ================= TAB 7: BANNERS ================= */}
       {tab === 'banners' && (
         <div className="admin-grid-layout">
           <div className="card admin-pane">
@@ -354,7 +409,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 6: TRAILERS ================= */}
+      {/* ================= TAB 8: TRAILERS ================= */}
       {tab === 'trailers' && (
         <div className="admin-grid-layout">
           <div className="card admin-pane">
@@ -407,11 +462,16 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 7: USERS ================= */}
+      {/* ================= TAB 9: USERS ================= */}
       {tab === 'users' && (
         <div className="admin-users-view">
           <div className="card admin-pane">
-            <h2 className="admin-pane-title">👥 Foydalanuvchilar Ro‘yxati ({users.length})</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+              <h2 className="admin-pane-title" style={{ margin: 0 }}>👥 Foydalanuvchilar Ro‘yxati ({users.length})</h2>
+              <Link href="/admin?tab=subscriptions" className="btn primary sm">
+                👑 Obunalarni Boshqarishga O‘tish →
+              </Link>
+            </div>
             <div className="table-wrapper-pro" style={{ marginTop: 16 }}>
               <table className="pro-table">
                 <thead>
@@ -447,7 +507,7 @@ export default async function AdminPage({ searchParams }) {
                         </td>
                         <td>{safeDate}</td>
                         <td>
-                          <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <form action={toggleUserVip}>
                               <input type="hidden" name="userId" value={u.id} />
                               <input type="hidden" name="currentPlan" value={u.subscription_plan || 'free'} />
@@ -474,7 +534,7 @@ export default async function AdminPage({ searchParams }) {
         </div>
       )}
 
-      {/* ================= TAB 8: TELEGRAM ================= */}
+      {/* ================= TAB 10: TELEGRAM ================= */}
       {tab === 'telegram' && (
         <div className="admin-telegram-view">
           <div className="card admin-pane" style={{ maxWidth: 800, margin: '0 auto' }}>

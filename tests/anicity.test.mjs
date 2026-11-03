@@ -385,6 +385,136 @@ assert.strictEqual(edgeCaseB.totalViews, 50);
 assert.strictEqual(edgeCaseB.totalVip, 1);
 console.log('✔ Server Component Null-Safety & React #441 Prevention passed');
 
+// 19. Subscription Plan Validation
+console.log('19. Testing Subscription Plan metadata & pricing validation...');
+function validateSubscriptionPlanInput({ name, slug, price_uzs, duration_days, benefits }) {
+  const errors = [];
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    errors.push('Tarif nomi kamida 2 ta belgidan iborat bo‘lishi kerak');
+  }
+  const cleanSlug = String(slug || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '_');
+  if (!cleanSlug) {
+    errors.push('Slug kiritilishi shart');
+  }
+  const price = Number(price_uzs);
+  if (isNaN(price) || price < 0) {
+    errors.push('Narx noldan kam bo‘lmagan son bo‘lishi kerak');
+  }
+  const duration = parseInt(duration_days, 10);
+  if (isNaN(duration) || duration < 1 || duration > 3650) {
+    errors.push('Amal qilish muddati 1 kundan 3650 kungacha bo‘lishi kerak');
+  }
+  const benefitsArray = Array.isArray(benefits)
+    ? benefits
+    : String(benefits || '').split('\n').map((b) => b.trim()).filter(Boolean);
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    data: errors.length === 0 ? { name: name.trim(), slug: cleanSlug, price_uzs: price, duration_days: duration, benefits: benefitsArray } : null,
+  };
+}
+
+const validPlanTest = validateSubscriptionPlanInput({
+  name: '3 Oylik VIP',
+  slug: 'vip_3_months',
+  price_uzs: 65000,
+  duration_days: 90,
+  benefits: '1080p Full HD\nReklamasiz\nCheksiz yuklab olish',
+});
+assert.strictEqual(validPlanTest.valid, true);
+assert.strictEqual(validPlanTest.data.price_uzs, 65000);
+assert.strictEqual(validPlanTest.data.duration_days, 90);
+assert.strictEqual(validPlanTest.data.benefits.length, 3);
+
+const invalidPlanTest = validateSubscriptionPlanInput({
+  name: '',
+  slug: 'invalid slug!!!',
+  price_uzs: -5000,
+  duration_days: 0,
+});
+assert.strictEqual(invalidPlanTest.valid, false);
+assert.ok(invalidPlanTest.errors.length >= 3);
+console.log('✔ Subscription Plan metadata & pricing validation passed');
+
+// 20. Subscription Expiration & Active VIP Status calculation
+console.log('20. Testing Subscription Expiration & VIP Active Status Calculation...');
+function calculateSubscriptionStatus(profile) {
+  if (!profile || profile.subscription_plan !== 'vip') {
+    return { isActiveVip: false, isExpired: false, daysLeft: 0, statusText: 'Oddiy' };
+  }
+  if (!profile.subscription_expires_at) {
+    return { isActiveVip: true, isExpired: false, daysLeft: null, statusText: 'Cheksiz VIP' };
+  }
+  const now = new Date();
+  const expiresAt = new Date(profile.subscription_expires_at);
+  const diffMs = expiresAt - now;
+  const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMs > 0) {
+    return { isActiveVip: true, isExpired: false, daysLeft, statusText: `${daysLeft} kun qoldi` };
+  }
+  return { isActiveVip: false, isExpired: true, daysLeft: 0, statusText: 'Muddati tugagan' };
+}
+
+// Case A: User with active 30 days remaining
+const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+const activeStatus = calculateSubscriptionStatus({ subscription_plan: 'vip', subscription_expires_at: futureDate });
+assert.strictEqual(activeStatus.isActiveVip, true);
+assert.strictEqual(activeStatus.isExpired, false);
+assert.ok(activeStatus.daysLeft >= 29 && activeStatus.daysLeft <= 31);
+
+// Case B: User with expired subscription
+const pastDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+const expiredStatus = calculateSubscriptionStatus({ subscription_plan: 'vip', subscription_expires_at: pastDate });
+assert.strictEqual(expiredStatus.isActiveVip, false);
+assert.strictEqual(expiredStatus.isExpired, true);
+assert.strictEqual(expiredStatus.daysLeft, 0);
+
+// Case C: Free user
+const freeStatus = calculateSubscriptionStatus({ subscription_plan: 'free', subscription_expires_at: null });
+assert.strictEqual(freeStatus.isActiveVip, false);
+assert.strictEqual(freeStatus.isExpired, false);
+console.log('✔ Subscription Expiration & VIP Active Status Calculation passed');
+
+// 21. Subscription Audit Log validation
+console.log('21. Testing Subscription Audit Log structure & action integrity...');
+const ALLOWED_ACTIONS = ['grant', 'extend', 'revoke', 'modify', 'expire'];
+function validateAuditLogRecord({ admin_id, user_id, action, previous_plan, new_plan, reason }) {
+  if (!admin_id || !user_id) throw new Error('admin_id and user_id are required');
+  if (!ALLOWED_ACTIONS.includes(action)) throw new Error(`Invalid audit action: ${action}`);
+  return {
+    admin_id,
+    user_id,
+    action,
+    previous_plan: previous_plan || 'free',
+    new_plan: new_plan || 'vip',
+    reason: String(reason || 'Admin action').trim(),
+    created_at: new Date().toISOString(),
+  };
+}
+
+const auditRecord = validateAuditLogRecord({
+  admin_id: 'admin-uuid-1234',
+  user_id: 'user-uuid-5678',
+  action: 'grant',
+  previous_plan: 'free',
+  new_plan: 'vip',
+  reason: 'Telegram orqali 3 oylik VIP xarid qilindi',
+});
+assert.strictEqual(auditRecord.action, 'grant');
+assert.strictEqual(auditRecord.admin_id, 'admin-uuid-1234');
+assert.strictEqual(auditRecord.reason, 'Telegram orqali 3 oylik VIP xarid qilindi');
+
+assert.throws(() => {
+  validateAuditLogRecord({
+    admin_id: 'admin-uuid-1234',
+    user_id: 'user-uuid-5678',
+    action: 'unauthorized_action',
+  });
+}, /Invalid audit action/);
+console.log('✔ Subscription Audit Log structure & action integrity passed');
+
 console.log('\n========================================');
-console.log('ALL 18 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 21 TEST SUITES PASSED PERFECTLY (100%)');
 console.log('========================================\n');

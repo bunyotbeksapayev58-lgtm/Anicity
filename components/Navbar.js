@@ -13,6 +13,7 @@ export default function Navbar({ user, profile, logoutAction }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userDropdown, setUserDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -40,6 +41,12 @@ export default function Navbar({ user, profile, logoutAction }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -51,8 +58,10 @@ export default function Navbar({ user, profile, logoutAction }) {
     { href: '/', label: 'Bosh sahifa' },
     { href: '/catalog', label: 'Katalog' },
     { href: '/#schedule', label: 'Jadval' },
-    { href: '/premium', label: '👑 VIP Premium' },
+    { href: '/premium', label: '👑 VIP Obuna' },
   ];
+
+  const isVip = profile?.subscription_plan === 'vip';
 
   return (
     <>
@@ -62,9 +71,10 @@ export default function Navbar({ user, profile, logoutAction }) {
             <button
               className="mobile-toggle"
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Menyu"
+              aria-label="Menyuni ochish"
+              type="button"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 {mobileOpen ? (
                   <path d="M18 6L6 18M6 6l12 12" />
                 ) : (
@@ -74,7 +84,7 @@ export default function Navbar({ user, profile, logoutAction }) {
             </button>
 
             <Link href="/" className="brand-pro">
-              <Logo size={36} />
+              <Logo size={34} />
               <span className="brand-text">
                 Ani<span className="brand-accent">city</span>
               </span>
@@ -113,6 +123,7 @@ export default function Navbar({ user, profile, logoutAction }) {
                 </svg>
               </button>
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -120,7 +131,7 @@ export default function Navbar({ user, profile, logoutAction }) {
                 className="search-input-pro"
               />
               {searchQuery && (
-                <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')} aria-label="Tozalash">
                   ✕
                 </button>
               )}
@@ -134,13 +145,14 @@ export default function Navbar({ user, profile, logoutAction }) {
                   onClick={() => setUserDropdown(!userDropdown)}
                   aria-label="Foydalanuvchi menyusi"
                 >
-                  <div className="avatar-circle">
+                  <div className={`avatar-circle ${isVip ? 'has-vip-ring' : ''}`}>
                     {(profile?.username || user.email || 'A').charAt(0).toUpperCase()}
                   </div>
                   <span className="user-name-label">
                     {profile?.username || user.email?.split('@')[0]}
                   </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  {isVip && <span className="crown-mini" title="VIP A’zo">👑</span>}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="chevron-mini">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
@@ -151,7 +163,7 @@ export default function Navbar({ user, profile, logoutAction }) {
                       <div className="dropdown-user-name">{profile?.username || user.email?.split('@')[0]}</div>
                       <div className="dropdown-user-email">{user.email}</div>
                       <div className="dropdown-badge">
-                        {profile?.subscription_plan === 'vip' ? '👑 VIP A’zo' : 'Oddiy a’zo'}
+                        {isVip ? '👑 VIP A’zo' : 'Oddiy a’zo'}
                       </div>
                     </div>
                     <div className="dropdown-divider" />
@@ -195,7 +207,7 @@ export default function Navbar({ user, profile, logoutAction }) {
         </div>
       </header>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer (Side Menu) */}
       <div className={`mobile-drawer ${mobileOpen ? 'open' : ''}`}>
         <div className="drawer-overlay" onClick={() => setMobileOpen(false)} />
         <div className="drawer-content">
@@ -204,8 +216,9 @@ export default function Navbar({ user, profile, logoutAction }) {
               <Logo size={32} />
               <span className="brand-text">Ani<span className="brand-accent">city</span></span>
             </Link>
-            <button className="drawer-close-btn" onClick={() => setMobileOpen(false)}>✕</button>
+            <button className="drawer-close-btn" onClick={() => setMobileOpen(false)} aria-label="Yopish">✕</button>
           </div>
+
           <div className="drawer-nav">
             {navLinks.map((item) => (
               <Link
@@ -217,37 +230,92 @@ export default function Navbar({ user, profile, logoutAction }) {
                 {item.label}
               </Link>
             ))}
+
+            <div className="drawer-divider" />
+
             {user ? (
               <>
                 <Link href="/profile" className="drawer-link" onClick={() => setMobileOpen(false)}>
-                  👤 Profilim
+                  👤 Profilim {isVip && '👑'}
                 </Link>
                 <Link href="/favorites" className="drawer-link" onClick={() => setMobileOpen(false)}>
                   🔖 Saqlanganlar
                 </Link>
                 <Link href="/history" className="drawer-link" onClick={() => setMobileOpen(false)}>
-                  🕒 Tarix
+                  🕒 Ko‘rish Tarixi
+                </Link>
+                <Link href="/premium" className="drawer-link vip-highlight" onClick={() => setMobileOpen(false)}>
+                  👑 VIP Obuna Rejalari
                 </Link>
                 {isAdminRole(profile?.role) && (
                   <Link href="/admin" className="drawer-link admin-pill" onClick={() => setMobileOpen(false)}>
-                    ⚡ Admin Panel
+                    ⚡ Admin Boshqaruv Paneli
                   </Link>
                 )}
-                <div style={{ marginTop: 20 }}>
+                <div style={{ marginTop: 24, padding: '0 8px' }}>
                   <form action={logoutAction}>
-                    <button className="btn ghost" style={{ width: '100%' }}>Chiqish</button>
+                    <button type="submit" className="btn ghost" style={{ width: '100%', minHeight: 44 }}>
+                      🚪 Tizimdan Chiqish
+                    </button>
                   </form>
                 </div>
               </>
             ) : (
               <div className="drawer-auth-buttons">
-                <Link href="/login" className="btn primary" onClick={() => setMobileOpen(false)}>Kirish</Link>
-                <Link href="/register" className="btn ghost" onClick={() => setMobileOpen(false)}>Ro‘yxatdan o‘tish</Link>
+                <Link href="/login" className="btn primary" style={{ minHeight: 44 }} onClick={() => setMobileOpen(false)}>
+                  Kirish
+                </Link>
+                <Link href="/register" className="btn ghost" style={{ minHeight: 44 }} onClick={() => setMobileOpen(false)}>
+                  Ro‘yxatdan o‘tish
+                </Link>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Phones only, <= 768px) */}
+      <nav className="mobile-bottom-bar" aria-label="Mobil navigatsiya">
+        <Link href="/" className={`bottom-bar-item ${pathname === '/' ? 'active' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span>Asosiy</span>
+        </Link>
+
+        <Link href="/catalog" className={`bottom-bar-item ${pathname.startsWith('/catalog') ? 'active' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          <span>Katalog</span>
+        </Link>
+
+        <Link href="/#schedule" className="bottom-bar-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span>Jadval</span>
+        </Link>
+
+        <Link href="/premium" className={`bottom-bar-item ${pathname === '/premium' ? 'active' : ''}`}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>👑</span>
+          <span style={{ color: 'var(--accent)' }}>VIP</span>
+        </Link>
+
+        <Link href={user ? '/profile' : '/login'} className={`bottom-bar-item ${pathname === '/profile' || pathname === '/login' ? 'active' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <span>{user ? 'Profil' : 'Kirish'}</span>
+        </Link>
+      </nav>
     </>
   );
 }

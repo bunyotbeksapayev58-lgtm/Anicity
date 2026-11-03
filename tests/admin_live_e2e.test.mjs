@@ -123,6 +123,90 @@ async function run() {
   assert.strictEqual(leftoverEps?.length || 0, 0, 'Cascade delete must remove all episodes');
   console.log('✔ Cascade delete verified: all episodes deleted with anime');
 
+  // 7. Testing Subscription Plans & Admin Management Flow
+  console.log('7. Testing Subscription Plans table retrieval...');
+  const { data: plans, error: plansErr } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  assert.ok(!plansErr, `Failed to load subscription plans: ${plansErr?.message}`);
+  assert.ok(plans && plans.length >= 4, 'Must have at least 4 subscription plans');
+  console.log(`✔ Found ${plans.length} subscription plans (including ${plans.map(p => p.slug).join(', ')})`);
+
+  // 8. Testing Subscription Grant & Audit Log Flow
+  console.log('8. Testing Admin Manual Grant & Audit Log entry...');
+  const testTargetUserId = authData.user.id;
+  const targetPlan = plans.find((p) => p.slug === 'vip_1_month') || plans[1];
+  assert.ok(targetPlan, 'VIP 1 month plan must exist');
+
+  const startsAt = new Date();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + targetPlan.duration_days);
+
+  // Insert user subscription record
+  const { data: userSub, error: subErr } = await supabase
+    .from('user_subscriptions')
+    .insert({
+      user_id: testTargetUserId,
+      plan_id: targetPlan.id,
+      plan_name: targetPlan.name,
+      status: 'active',
+      grant_type: 'manual_admin',
+      starts_at: startsAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      notes: 'E2E Automated Subscription Grant Test',
+    })
+    .select('id, plan_name, status')
+    .single();
+  assert.ok(!subErr, `User subscription insertion failed: ${subErr?.message}`);
+  assert.strictEqual(userSub.status, 'active');
+
+  // Insert audit log
+  const { data: auditLog, error: auditErr } = await supabase
+    .from('subscription_audit_logs')
+    .insert({
+      admin_id: authData.user.id,
+      user_id: testTargetUserId,
+      action: 'grant',
+      previous_plan: 'free',
+      new_plan: 'vip',
+      reason: 'E2E Automated Test Grant',
+    })
+    .select('id, action, reason')
+    .single();
+  assert.ok(!auditErr, `Audit log insertion failed: ${auditErr?.message}`);
+  assert.strictEqual(auditLog.action, 'grant');
+  console.log('✔ Subscription grant and audit log entry created successfully');
+
+  // 9. Testing Extend Subscription
+  console.log('9. Testing Extend Subscription duration...');
+  const newExpiresAt = new Date(expiresAt);
+  newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+  const { error: extendErr } = await supabase
+    .from('user_subscriptions')
+    .update({ expires_at: newExpiresAt.toISOString() })
+    .eq('id', userSub.id);
+  assert.ok(!extendErr, `Subscription extension failed: ${extendErr?.message}`);
+
+  const { error: extendAuditErr } = await supabase
+    .from('subscription_audit_logs')
+    .insert({
+      admin_id: authData.user.id,
+      user_id: testTargetUserId,
+      action: 'extend',
+      previous_plan: 'vip',
+      new_plan: 'vip',
+      reason: 'E2E Automated Test Extension +30 days',
+    });
+  assert.ok(!extendAuditErr, `Extension audit log failed: ${extendAuditErr?.message}`);
+  console.log('✔ Subscription duration extended +30 days and audited');
+
+  // 10. Clean up test subscription records
+  console.log('10. Cleaning up test subscription and audit log records...');
+  await supabase.from('user_subscriptions').delete().eq('id', userSub.id);
+  await supabase.from('subscription_audit_logs').delete().eq('user_id', testTargetUserId).like('reason', 'E2E Automated Test%');
+  console.log('✔ Test subscription data cleaned up successfully');
+
   console.log('\n=============================================');
   console.log('ALL E2E WORKFLOW CHECKS PASSED PERFECTLY!');
   console.log('=============================================\n');
