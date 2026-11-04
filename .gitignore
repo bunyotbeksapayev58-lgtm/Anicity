@@ -28,4 +28,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # Vercel
+.vercel/
+
+# Database backups & local snapshots
+backups/
+
 .vercel
