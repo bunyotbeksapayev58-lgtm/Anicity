@@ -29,7 +29,7 @@ export async function login(prevState, formData) {
   if (!input.includes('@')) {
     const admin = createAdminClient();
     if (!admin) {
-      return { error: 'Username orqali kirish server kalitini talab qiladi. Iltimos, email manzilingiz bilan kiring' };
+      return { error: 'Username orqali kirish server kalitini talab qiladi. Iltimos, ro‘yxatdan o‘tgan emailingiz bilan kiring (masalan: misol@gmail.com)' };
     }
     const { data: profile } = await admin
       .from('profiles').select('id').ilike('username', escapeLike(input)).maybeSingle();

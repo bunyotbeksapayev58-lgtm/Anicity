@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { toPlayableUrl, isDriveUrl } from '@/lib/drive';
 
 function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return '00:00';
@@ -15,24 +16,6 @@ function formatTime(seconds) {
     return `${h}:${remM < 10 ? '0' : ''}${remM}:${remS < 10 ? '0' : ''}${remS}`;
   }
   return `${m < 10 ? '0' : ''}${m}:${remS < 10 ? '0' : ''}${remS}`;
-}
-
-// Normalizes Google Drive links so they always render correctly via /preview
-function formatDriveUrl(url) {
-  if (!url) return '';
-  const trimmed = url.trim();
-  if (/drive\.google\.com/i.test(trimmed)) {
-    if (trimmed.includes('/view')) {
-      return trimmed.replace(/\/view(\?.*)?$/i, '/preview');
-    }
-    if (trimmed.includes('/edit')) {
-      return trimmed.replace(/\/edit(\?.*)?$/i, '/preview');
-    }
-    if (!trimmed.endsWith('/preview')) {
-      return trimmed.replace(/\/?$/, '/preview');
-    }
-  }
-  return trimmed;
 }
 
 export default function Player({
@@ -51,8 +34,10 @@ export default function Player({
   const lastSave = useRef(0);
   const supabase = useRef(null);
 
-  // Distinguish between direct HTML5 video and Google Drive / iframe embeds
-  const isDirectVideo = Boolean(src && /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(src));
+  // Unified URL resolution (supports drive:ID, Google Drive links, direct MP4/WebM)
+  const playableUrl = toPlayableUrl(src);
+  const isDrive = Boolean(src && isDriveUrl(src));
+  const isDirectVideo = Boolean(!isDrive && playableUrl && /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(playableUrl));
 
   // Direct video playback states
   const [isPlaying, setIsPlaying] = useState(false);
@@ -164,7 +149,7 @@ export default function Player({
       v.removeEventListener('error', onError);
       v.removeEventListener('ended', onEnded);
     };
-  }, [src, isDirectVideo, startAt, nextHref, saveProgress]);
+  }, [playableUrl, isDirectVideo, startAt, nextHref, saveProgress]);
 
   // Fullscreen change listener (works for both HTML5 and iframe Fullscreen API)
   useEffect(() => {
@@ -352,7 +337,7 @@ export default function Player({
 
   // Reset loading timer on src change
   useEffect(() => {
-    if (!isDirectVideo && src) {
+    if (!isDirectVideo && playableUrl) {
       setIsIframeLoading(true);
       setIframeError(false);
 
@@ -363,7 +348,7 @@ export default function Player({
 
       return () => clearTimeout(timer);
     }
-  }, [src, isDirectVideo, iframeKey]);
+  }, [playableUrl, isDirectVideo, iframeKey]);
 
   const handleIframeLoad = () => {
     setIsIframeLoading(false);
@@ -493,7 +478,7 @@ export default function Player({
           <div className="ani-player-inner">
             <video
               ref={videoRef}
-              src={src}
+              src={playableUrl}
               className="ani-video-element"
               playsInline
               preload="metadata"
@@ -704,7 +689,7 @@ export default function Player({
             <iframe
               key={iframeKey}
               ref={iframeRef}
-              src={formatDriveUrl(src)}
+              src={playableUrl}
               className="ani-drive-iframe"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"

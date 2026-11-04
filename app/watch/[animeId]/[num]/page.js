@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import Player from '@/components/Player';
 import { toggleEpisodeCompleted } from '@/app/actions/progress';
+import { isDriveUrl } from '@/lib/drive';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,8 @@ export default async function WatchPage({ params }) {
   const prev = episodes.find((e) => e.number === ep.number - 1);
   const next = episodes.find((e) => e.number === ep.number + 1);
 
+  const isDrive = Boolean(ep.video_url && isDriveUrl(ep.video_url));
+
   // Fetch 4 related anime recommendations
   const { data: relatedRaw } = await supabase
     .from('animes')
@@ -89,7 +92,7 @@ export default async function WatchPage({ params }) {
               userId={user?.id}
               animeId={animeId}
               episodeId={ep.id}
-              startAt={saved && !saved.completed ? saved.position_sec : 0}
+              startAt={!isDrive && saved && !saved.completed ? saved.position_sec : 0}
               nextHref={next ? `/watch/${animeId}/${next.number}` : null}
               animeTitle={anime.title}
               episodeTitle={ep.title || `${ep.number}-qism`}
@@ -121,10 +124,10 @@ export default async function WatchPage({ params }) {
                   <input type="hidden" name="completed" value={String(isCompleted)} />
                   <button
                     type="submit"
-                    className={`btn sm ${isCompleted ? 'danger' : 'ghost'} watch-action-btn`}
+                    className={`btn sm ${isCompleted ? 'ghost' : 'primary'} watch-action-btn`}
                     title="Ko‘rilganlik holatini o‘zgartirish"
                   >
-                    {isCompleted ? '✓ Ko‘rilgan (Bekor qilish)' : '✓ Ko‘rildi deb belgilash'}
+                    {isCompleted ? '✓ Ko‘rilgan (Bekor qilish)' : '👁️ Ko‘rildi deb belgilash'}
                   </button>
                 </form>
               )}
@@ -159,6 +162,13 @@ export default async function WatchPage({ params }) {
                 )}
               </div>
             </div>
+
+            {/* Google Drive Watching Note */}
+            {isDrive && (
+              <div className="watch-drive-note">
+                💡 <span>Google Drive player: Tomoshani yakunlagach, yuqoridagi <b>“Ko‘rildi deb belgilash”</b> tugmasini bosing.</span>
+              </div>
+            )}
           </div>
 
           {/* Mobile-Only Horizontal Episode Selector (Visible <= 1024px) */}

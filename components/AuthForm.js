@@ -18,12 +18,15 @@ export default function AuthForm({ action, mode, next }) {
       {isRegister ? (
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" required autoComplete="email" />
+          <input id="email" name="email" type="email" required autoComplete="email" placeholder="masalan: user@gmail.com" />
         </div>
       ) : (
         <div className="field">
-          <label htmlFor="login">Username yoki email</label>
-          <input id="login" name="login" required autoComplete="username" />
+          <label htmlFor="login">Email yoki Username</label>
+          <input id="login" name="login" required autoComplete="username" placeholder="Email (tavsiya) yoki username" />
+          <small style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4, display: 'block' }}>
+            💡 Tizimga emailingiz orqali to‘g‘ridan-to‘g‘ri kirishingiz mumkin.
+          </small>
         </div>
       )}
       <div className="field">
