@@ -2427,7 +2427,10 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
   }
   .admin-grid-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-pane {
+    min-width: 0;
   }
   .footer-grid {
     grid-template-columns: 1fr 1fr;
@@ -4125,19 +4128,69 @@ input:focus, select:focus, textarea:focus {
   .catalog-search-input {
     width: 100% !important;
   }
+  .admin-pane {
+    padding: 16px 12px;
+    min-width: 0;
+  }
+  .admin-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .admin-info b {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-info p {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .li-admin {
+    gap: 8px;
+    padding: 10px 8px;
+  }
+  .li-admin .btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .admin-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .metric-box {
+    padding: 12px 10px;
+    gap: 10px;
+    min-width: 0;
+  }
+  .metric-val {
+    font-size: 18px;
+  }
+  .metric-icon {
+    font-size: 24px;
+  }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .anime-catalog-grid {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 16px !important;
+  }
+  .catalog-grid-item {
+    min-width: 0 !important;
   }
 }
 
 @media (min-width: 1280px) {
   .anime-catalog-grid {
-    grid-template-columns: repeat(6, 1fr) !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
     gap: 20px !important;
+  }
+  .catalog-grid-item {
+    min-width: 0 !important;
   }
 }
 
