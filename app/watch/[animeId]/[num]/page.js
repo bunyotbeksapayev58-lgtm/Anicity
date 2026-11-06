@@ -142,7 +142,7 @@ export default async function WatchPage({ params }) {
                     ◀ Oldingi
                   </Link>
                 ) : (
-                  <button className="btn ghost sm watch-nav-btn" disabled style={{ opacity: 0.4 }}>
+                  <button className="btn ghost sm watch-nav-btn disabled" disabled aria-disabled="true" title="Oldingi qism mavjud emas">
                     ◀ Oldingi
                   </button>
                 )}
@@ -156,7 +156,7 @@ export default async function WatchPage({ params }) {
                     Keyingi ▶
                   </Link>
                 ) : (
-                  <button className="btn ghost sm watch-nav-btn" disabled style={{ opacity: 0.4 }}>
+                  <button className="btn ghost sm watch-nav-btn disabled" disabled aria-disabled="true" title="Keyingi qism mavjud emas">
                     Keyingi ▶
                   </button>
                 )}

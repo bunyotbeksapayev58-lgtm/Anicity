@@ -12,7 +12,9 @@ export default function Navbar({ user, profile, logoutAction }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userDropdown, setUserDropdown] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const notificationsRef = useRef(null);
   const searchInputRef = useRef(null);
   const pathname = usePathname();
 
@@ -29,12 +31,16 @@ export default function Navbar({ user, profile, logoutAction }) {
     setMobileOpen(false);
     setSearchOpen(false);
     setUserDropdown(false);
+    setNotificationsOpen(false);
   }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setUserDropdown(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+        setNotificationsOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -46,6 +52,25 @@ export default function Navbar({ user, profile, logoutAction }) {
       searchInputRef.current.focus();
     }
   }, [searchOpen]);
+
+
+  // Global keyboard shortcuts for quick search (⌘K or /)
+  useEffect(() => {
+    const handleGlobalKeys = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if ((e.metaKey || e.ctrlKey) && e.key?.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      } else if (e.key === '/') {
+        e.preventDefault();
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => window.removeEventListener('keydown', handleGlobalKeys);
+  }, []);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -133,7 +158,7 @@ export default function Navbar({ user, profile, logoutAction }) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Anime qidirish..."
+                placeholder="Anime qidirish... (⌘K yoki /)"
                 className="search-input-pro"
               />
               {searchQuery && (
@@ -142,6 +167,52 @@ export default function Navbar({ user, profile, logoutAction }) {
                 </button>
               )}
             </form>
+
+            {/* Notification Bell (UX Standards) */}
+            <div className="notification-bell-wrap" ref={notificationsRef}>
+              <button
+                type="button"
+                className="notification-bell-btn"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                aria-label="Xabarlar va yangiliklar"
+                title="Xabarlar"
+              >
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span className="notification-dot" />
+              </button>
+              {notificationsOpen && (
+                <div className="notifications-popover">
+                  <div className="notifications-header">
+                    <span className="notifications-title">🔔 Xabarlar</span>
+                    <span className="notifications-count">Yangi</span>
+                  </div>
+                  <div className="notifications-list">
+                    <div className="notification-item">
+                      <div className="notification-item-icon">✨</div>
+                      <div className="notification-item-content">
+                        <div className="notification-item-title">Yangi premyeralar yuklandi!</div>
+                        <div className="notification-item-desc">Bugungi yangi qismlarni jadvalda ko‘ring.</div>
+                        <div className="notification-item-time">Hozirgina</div>
+                      </div>
+                    </div>
+                    <div className="notification-item">
+                      <div className="notification-item-icon">👑</div>
+                      <div className="notification-item-content">
+                        <div className="notification-item-title">VIP Imkoniyatlar</div>
+                        <div className="notification-item-desc">Reklamasiz va 1080p Full HD tomosha qiling.</div>
+                        <div className="notification-item-time">Bugun</div>
+                      </div>
+                    </div>
+                  </div>
+                  <Link href="/catalog" className="notifications-footer-link" onClick={() => setNotificationsOpen(false)}>
+                    Katalogni ko‘rish →
+                  </Link>
+                </div>
+              )}
+            </div>
 
             {user ? (
               <div className="user-profile-menu-wrap" ref={dropdownRef}>

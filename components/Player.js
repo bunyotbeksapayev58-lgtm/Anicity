@@ -134,6 +134,33 @@ export default function Player({
     supabase.current = createClient();
   }, []);
 
+  // State persistence: load saved volume and mute states from localStorage
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const savedVol = localStorage.getItem('anicity_player_volume');
+        const savedMute = localStorage.getItem('anicity_player_muted');
+        if (savedVol !== null) {
+          const parsed = parseFloat(savedVol);
+          if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+            setVolume(parsed);
+            if (videoRef.current) {
+              videoRef.current.volume = parsed;
+            }
+          }
+        }
+        if (savedMute !== null) {
+          const isM = savedMute === 'true';
+          setIsMuted(isM);
+          if (videoRef.current) {
+            videoRef.current.muted = isM;
+          }
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+
   // Save progress for direct HTML5 video
   const saveProgress = useCallback(async ({ force = false, completed = false } = {}) => {
     const v = videoRef.current;
@@ -312,8 +339,13 @@ export default function Player({
     const val = parseFloat(e.target.value);
     v.volume = val;
     setVolume(val);
-    setIsMuted(val === 0);
-    v.muted = val === 0;
+    const muted = val === 0;
+    setIsMuted(muted);
+    v.muted = muted;
+    try {
+      localStorage.setItem('anicity_player_volume', String(val));
+      localStorage.setItem('anicity_player_muted', String(muted));
+    } catch (_) {}
     resetControlsTimer();
   };
 
@@ -323,11 +355,37 @@ export default function Player({
     if (isMuted) {
       v.muted = false;
       setIsMuted(false);
-      v.volume = volume || 0.5;
+      const targetVol = volume > 0 ? volume : 0.8;
+      v.volume = targetVol;
+      setVolume(targetVol);
+      try {
+        localStorage.setItem('anicity_player_muted', 'false');
+        localStorage.setItem('anicity_player_volume', String(targetVol));
+      } catch (_) {}
     } else {
       v.muted = true;
       setIsMuted(true);
+      try {
+        localStorage.setItem('anicity_player_muted', 'true');
+      } catch (_) {}
     }
+    resetControlsTimer();
+  };
+
+  const adjustVolume = (delta) => {
+    const v = videoRef.current;
+    if (!v) return;
+    const current = typeof v.volume === 'number' ? v.volume : volume;
+    const newVol = Math.max(0, Math.min(1, Math.round((current + delta) * 100) / 100));
+    v.volume = newVol;
+    setVolume(newVol);
+    const muted = newVol === 0;
+    setIsMuted(muted);
+    v.muted = muted;
+    try {
+      localStorage.setItem('anicity_player_volume', String(newVol));
+      localStorage.setItem('anicity_player_muted', String(muted));
+    } catch (_) {}
     resetControlsTimer();
   };
 
@@ -411,7 +469,7 @@ export default function Player({
     if (!isDirectVideo) return;
     const onKeyDown = (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'KeyK') {
         e.preventDefault();
         togglePlay();
       } else if (e.code === 'ArrowRight') {
@@ -420,6 +478,12 @@ export default function Player({
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
         skip(-10);
+      } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        adjustVolume(0.05);
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        adjustVolume(-0.05);
       } else if (e.code === 'KeyF') {
         e.preventDefault();
         toggleFullscreen();
