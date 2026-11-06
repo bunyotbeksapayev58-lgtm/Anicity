@@ -10,11 +10,15 @@ export async function updateOwnProfile(_previousState, formData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Profilni o‘zgartirish uchun tizimga kiring.' };
 
-  const displayNameInput = String(formData.get('display_name') || '').trim();
+  const displayNameInput = String(formData.get('display_name') || '')
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .trim();
   if (displayNameInput.length > 80) return { error: 'Ism 80 belgidan oshmasligi kerak.' };
   const displayName = displayNameInput || null;
 
-  const bioInput = String(formData.get('bio') || '').trim();
+  const bioInput = String(formData.get('bio') || '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .trim();
   if (bioInput.length > 500) return { error: 'Bio 500 belgidan oshmasligi kerak.' };
   const bio = bioInput || null;
 
