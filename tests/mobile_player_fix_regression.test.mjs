@@ -33,31 +33,57 @@ test('Google Drive Mobile Player Black Screen & Popout Guard Fixes', () => {
   const trailers = fs.readFileSync(path.resolve('components/TrailersClips.js'), 'utf8');
   const css = fs.readFileSync(path.resolve('app/globals.css'), 'utf8').replace(/\r\n/g, '\n');
 
-  // 1. Container aspect ratio and classes
+  // 1. Container aspect ratio and classes (strict aspect-video, no collapse)
   assert.ok(
-    player.includes('className="ani-drive-frame-box w-full aspect-video bg-black rounded-xl overflow-hidden relative"'),
-    'Player must define explicit aspect ratio container classes'
+    player.includes('className="ani-drive-frame-box relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center"'),
+    'Player must define strict aspect-video container with shadow-2xl and flex centering'
   );
 
-  // 2. Iframe attributes for mobile sandbox & security
+  // 2. Iframe configuration for mobile sandbox & cross-origin bypass
   assert.ok(
-    player.includes('className="ani-drive-iframe w-full h-full border-0 absolute inset-0"'),
-    'Iframe must have absolute inset-0 sizing'
+    player.includes('className="ani-drive-iframe absolute inset-0 w-full h-full border-0 z-10"'),
+    'Iframe must have absolute inset-0 w-full h-full border-0 z-10'
   );
   assert.ok(
     player.includes('referrerPolicy="no-referrer"'),
-    'Player iframe must have referrerPolicy="no-referrer" to prevent mobile Drive black screen'
+    'Player iframe must have referrerPolicy="no-referrer" to stop Google tracking/blocking mobile origins'
   );
   assert.ok(
     player.includes('loading="eager"'),
     'Player iframe must have loading="eager"'
   );
   assert.ok(
-    player.includes('allow="autoplay; fullscreen; encrypted-media; picture-in-picture"'),
-    'Player iframe must allow autoplay fullscreen encrypted-media'
+    player.includes('allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"'),
+    'Player iframe must allow accelerometer, autoplay, encrypted-media, gyroscope, picture-in-picture, fullscreen'
   );
 
-  // 3. Pop-out Guard
+  // 3. Drive URL formatting
+  assert.ok(
+    player.includes('const driveUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : playableUrl;'),
+    'Must strictly format drive URL with /preview'
+  );
+
+  // 4. Mobile Direct Stream Fallback
+  assert.ok(
+    player.includes('if (isMobileDevice && isDirectVideo)'),
+    'Must provide mobile direct stream fallback'
+  );
+  assert.ok(
+    player.includes('playsInline'),
+    'Native mobile video fallback must set playsInline'
+  );
+
+  // 5. Reload Overlay Button with timestamp key
+  assert.ok(
+    player.includes('className="ani-drive-reload-overlay-btn"'),
+    'Must provide interactive quick reload overlay button'
+  );
+  assert.ok(
+    player.includes('setIframeKey(Date.now())'),
+    'Reload must force iframe re-render with fresh timestamp key'
+  );
+
+  // 6. Pop-out Guard
   assert.ok(
     player.includes('className="ani-drive-popout-guard"'),
     'Player must include .ani-drive-popout-guard'
@@ -67,7 +93,7 @@ test('Google Drive Mobile Player Black Screen & Popout Guard Fixes', () => {
     'CSS must style .ani-drive-popout-guard at top-right'
   );
 
-  // 4. Trailers iframe also protected
+  // 7. Trailers iframe also protected
   assert.ok(
     trailers.includes('referrerPolicy="no-referrer"'),
     'Trailers modal iframe must also set referrerPolicy="no-referrer"'

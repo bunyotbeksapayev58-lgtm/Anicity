@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { toPlayableUrl, isDriveUrl } from '@/lib/drive';
+import { toPlayableUrl, isDriveUrl, extractDriveFileId } from '@/lib/drive';
 
 function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return '00:00';
@@ -87,7 +87,25 @@ export default function Player({
   // Unified URL resolution (supports drive:ID, Google Drive links, direct MP4/WebM)
   const playableUrl = toPlayableUrl(src);
   const isDrive = Boolean(src && isDriveUrl(src));
+  const driveId = extractDriveFileId(src);
+  const driveUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : playableUrl;
   const isDirectVideo = Boolean(!isDrive && playableUrl && /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(playableUrl));
+
+  // Mobile device detection for direct stream native fallback
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileUA =
+        typeof navigator !== 'undefined' &&
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
+      setIsMobileDevice(Boolean(isMobileUA || isSmallScreen));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Direct video playback states
   const [isPlaying, setIsPlaying] = useState(false);
@@ -447,7 +465,7 @@ export default function Player({
   const handleReloadIframe = () => {
     setIsIframeLoading(true);
     setIframeError(false);
-    setIframeKey((k) => k + 1);
+    setIframeKey(Date.now()); // Forces an iframe re-render with a fresh timestamp key
   };
 
   // Enter / Exit Theater Mode (especially for iPhone / iOS Safari)
@@ -541,6 +559,22 @@ export default function Player({
       }
     };
   }, []);
+
+  // Mobile Direct Stream Fallback: If source provides direct video (MP4/HLS), render native <video controls playsInline>
+  if (isMobileDevice && isDirectVideo) {
+    return (
+      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center">
+        <video
+          ref={videoRef}
+          src={playableUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full h-full object-contain rounded-xl bg-black"
+        />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -763,18 +797,18 @@ export default function Player({
           ref={driveContainerRef}
           className={`ani-drive-container ${isTheaterMode ? 'is-theater-mode' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
         >
-          {/* Responsive 16:9 Frame Box */}
-          <div className="ani-drive-frame-box w-full aspect-video bg-black rounded-xl overflow-hidden relative">
+          {/* Responsive 16:9 Frame Box with Strict Dimensions & Aspect Ratio */}
+          <div className="ani-drive-frame-box relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center">
             <iframe
               key={iframeKey}
               ref={iframeRef}
-              src={playableUrl}
-              className="ani-drive-iframe w-full h-full border-0 absolute inset-0"
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              src={driveUrl}
+              title={episodeTitle || "Video Player"}
+              className="ani-drive-iframe absolute inset-0 w-full h-full border-0 z-10"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
               allowFullScreen
-              loading="eager"
               referrerPolicy="no-referrer"
-              title={episodeTitle ? `${animeTitle} — ${episodeTitle}` : 'Google Drive Video Player'}
+              loading="eager"
               onLoad={handleIframeLoad}
               onError={handleIframeError}
             />
@@ -788,6 +822,21 @@ export default function Player({
                 e.stopPropagation();
               }}
             />
+
+            {/* Quick Reload Overlay Button (Forces iframe re-render with timestamp key) */}
+            <button
+              type="button"
+              className="ani-drive-reload-overlay-btn"
+              onClick={handleReloadIframe}
+              title="Qayta yuklash / Reload Player"
+              aria-label="Qayta yuklash / Reload Player"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <path d="M23 4v6h-6" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              <span>Qayta yuklash</span>
+            </button>
 
             {/* Non-intrusive loading badge (pointer-events: none; located at top-left away from Google controls) */}
             {isIframeLoading && !iframeError && (

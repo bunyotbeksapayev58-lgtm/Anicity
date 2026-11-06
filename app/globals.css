@@ -2215,11 +2215,18 @@ input:focus, select:focus, textarea:focus {
 }
 .player {
   width: 100%;
+  position: relative;
+  min-height: 200px;
   background: #000;
   border-radius: var(--r-lg);
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border-subtle);
   box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.9);
+}
+@media (max-width: 640px) {
+  .player {
+    min-height: 185px;
+  }
 }
 .player:not(:has(.ani-drive-container)) {
   aspect-ratio: 16 / 9;
@@ -4628,12 +4635,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 .ani-drive-frame-box {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  min-height: 185px !important;
+  background: #000 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   contain: paint;
 }
 
@@ -7562,3 +7573,43 @@ input:focus, select:focus, textarea:focus {
 .absolute { position: absolute !important; }
 .inset-0 { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 .border-0 { border: 0 !important; }
+
+/* Interactive Quick Reload Overlay Button */
+.ani-drive-reload-overlay-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(14, 14, 22, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 20;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.ani-drive-reload-overlay-btn:hover {
+  background: rgba(124, 92, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.04);
+}
+
+.ani-drive-reload-overlay-btn:active {
+  transform: scale(0.96);
+}
+
+.shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75) !important; }
+.flex { display: flex !important; }
+.items-center { align-items: center !important; }
+.justify-center { justify-content: center !important; }
+.z-10 { z-index: 10 !important; }
+.object-contain { object-fit: contain !important; }
