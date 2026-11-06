@@ -4892,6 +4892,21 @@ input:focus, select:focus, textarea:focus {
   object-fit: contain !important;
 }
 
+/* Ensure controls overlay remains visible and interactive in fullscreen */
+.ani-player-wrapper.is-fullscreen .ani-player-controls-overlay,
+.ani-player-wrapper:fullscreen .ani-player-controls-overlay,
+.ani-player-wrapper:-webkit-full-screen .ani-player-controls-overlay {
+  z-index: 50 !important;
+}
+
+.ani-player-wrapper.is-fullscreen .ani-player-controls-overlay.visible,
+.ani-player-wrapper:fullscreen .ani-player-controls-overlay.visible,
+.ani-player-wrapper:-webkit-full-screen .ani-player-controls-overlay.visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 /* Buffering Spinner */
 .ani-player-spinner-overlay {
   position: absolute;

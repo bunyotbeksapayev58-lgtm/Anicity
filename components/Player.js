@@ -18,6 +18,56 @@ function formatTime(seconds) {
   return `${m < 10 ? '0' : ''}${m}:${remS < 10 ? '0' : ''}${remS}`;
 }
 
+// Fullscreen API cross-browser helpers (with vendor prefixes: WebKit, Mozilla, MS)
+function getActiveFullscreenElement() {
+  if (typeof document === 'undefined') return null;
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+}
+
+function requestElementFullscreen(element) {
+  if (!element) return Promise.reject(new Error('Element not provided for fullscreen'));
+  try {
+    if (element.requestFullscreen) {
+      return element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      return element.webkitRequestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+      return element.mozRequestFullScreen();
+    } else if (element.msRequestFullscreen) {
+      return element.msRequestFullscreen();
+    } else if (element.webkitEnterFullscreen) {
+      return Promise.resolve(element.webkitEnterFullscreen());
+    }
+  } catch (err) {
+    return Promise.reject(err);
+  }
+  return Promise.reject(new Error('Fullscreen API not supported on this browser/element'));
+}
+
+function exitDocumentFullscreen() {
+  if (typeof document === 'undefined') return Promise.resolve();
+  try {
+    if (document.exitFullscreen) {
+      return document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      return document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      return document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      return document.msExitFullscreen();
+    }
+  } catch (err) {
+    return Promise.reject(err);
+  }
+  return Promise.resolve();
+}
+
 export default function Player({
   src,
   userId,
@@ -151,10 +201,10 @@ export default function Player({
     };
   }, [playableUrl, isDirectVideo, startAt, nextHref, saveProgress]);
 
-  // Fullscreen change listener (works for both HTML5 and iframe Fullscreen API)
+  // Fullscreen change listener synced across vendor prefixes and iOS Safari
   useEffect(() => {
     const onFsChange = () => {
-      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      const fsEl = getActiveFullscreenElement();
       setIsFullscreen(Boolean(fsEl));
       if (!fsEl && typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
         screen.orientation.unlock().catch(() => {});
@@ -163,9 +213,26 @@ export default function Player({
 
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+
+    const videoEl = videoRef.current;
+    const onVideoBeginFs = () => setIsFullscreen(true);
+    const onVideoEndFs = () => setIsFullscreen(false);
+    if (videoEl) {
+      videoEl.addEventListener('webkitbeginfullscreen', onVideoBeginFs);
+      videoEl.addEventListener('webkitendfullscreen', onVideoEndFs);
+    }
+
     return () => {
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+      if (videoEl) {
+        videoEl.removeEventListener('webkitbeginfullscreen', onVideoBeginFs);
+        videoEl.removeEventListener('webkitendfullscreen', onVideoEndFs);
+      }
     };
   }, []);
 
@@ -255,44 +322,61 @@ export default function Player({
     resetControlsTimer();
   };
 
-  // Direct HTML5 video fullscreen toggle
-  const toggleFullscreen = async () => {
+  // Direct HTML5 video fullscreen toggle (proper toggle, vendor prefixes, and safe fallbacks)
+  const toggleFullscreen = useCallback((e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     const container = containerRef.current;
-    if (!container) return;
+    const activeFs = getActiveFullscreenElement();
 
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      try {
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-        } else if (container.webkitRequestFullscreen) {
-          await container.webkitRequestFullscreen();
-        } else if (videoRef.current?.webkitEnterFullscreen) {
-          videoRef.current.webkitEnterFullscreen();
-        }
-        setIsFullscreen(true);
-        if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
-      } catch (err) {
-        console.warn('Fullscreen entry failed:', err);
-      }
+    if (activeFs || isFullscreen) {
+      // If in fullscreen: call document.exitFullscreen() with vendor fallbacks
+      exitDocumentFullscreen()
+        .then(() => {
+          setIsFullscreen(false);
+          if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock().catch(() => {});
+          }
+        })
+        .catch((err) => {
+          console.error('Exit fullscreen error:', err);
+          if (videoRef.current?.webkitExitFullscreen) {
+            try {
+              videoRef.current.webkitExitFullscreen();
+            } catch (vErr) {
+              console.error('video webkitExitFullscreen error:', vErr);
+            }
+          }
+          setIsFullscreen(false);
+        });
     } else {
-      try {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          await document.webkitExitFullscreen();
-        }
-        setIsFullscreen(false);
-        if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
-          screen.orientation.unlock().catch(() => {});
-        }
-      } catch (err) {
-        console.warn('Fullscreen exit failed:', err);
+      // If not in fullscreen: call playerContainer.requestFullscreen() (or target video/wrapper element)
+      const targetEl = container || videoRef.current;
+      if (targetEl) {
+        requestElementFullscreen(targetEl)
+          .then(() => {
+            setIsFullscreen(true);
+            if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('landscape').catch(() => {});
+            }
+          })
+          .catch((err) => {
+            console.error('Container requestFullscreen error:', err);
+            // Fallback for mobile Safari iOS video element
+            if (videoRef.current?.webkitEnterFullscreen) {
+              try {
+                videoRef.current.webkitEnterFullscreen();
+                setIsFullscreen(true);
+              } catch (safariErr) {
+                console.error('webkitEnterFullscreen error:', safariErr);
+              }
+            }
+          });
       }
     }
     resetControlsTimer();
-  };
+  }, [isFullscreen, resetControlsTimer]);
 
   const handleRetry = () => {
     setHasError(false);
@@ -392,57 +476,50 @@ export default function Player({
   };
 
   // Fullscreen trigger for Google Drive: Try native iframe.requestFullscreen first, then theater mode fallback
-  const handleDriveFullscreen = async () => {
+  const handleDriveFullscreen = useCallback((e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     const iframe = iframeRef.current;
-    const isCurrentlyFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const activeFs = getActiveFullscreenElement();
 
     if (isTheaterMode) {
       exitTheaterMode();
       return;
     }
 
-    if (isCurrentlyFs) {
-      try {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          await document.webkitExitFullscreen();
-        }
-        setIsFullscreen(false);
-        if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
-          screen.orientation.unlock().catch(() => {});
-        }
-      } catch (err) {
-        console.warn('Exit fullscreen failed:', err);
-      }
+    if (activeFs || isFullscreen) {
+      exitDocumentFullscreen()
+        .then(() => {
+          setIsFullscreen(false);
+          if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock().catch(() => {});
+          }
+        })
+        .catch((err) => {
+          console.error('Exit fullscreen failed:', err);
+          setIsFullscreen(false);
+        });
       return;
     }
 
     // 1. Try native element fullscreen directly on the iframe element (Android Chrome & Desktop)
     if (iframe) {
-      const req =
-        iframe.requestFullscreen ||
-        iframe.webkitRequestFullscreen ||
-        iframe.mozRequestFullScreen ||
-        iframe.msRequestFullscreen;
-
-      if (req && typeof req === 'function') {
-        try {
-          await req.call(iframe);
+      requestElementFullscreen(iframe)
+        .then(() => {
           setIsFullscreen(true);
           if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('landscape').catch(() => {});
           }
-          return;
-        } catch (err) {
-          console.info('iframe.requestFullscreen declined or not permitted, switching to theater mode:', err);
-        }
-      }
+        })
+        .catch((err) => {
+          console.error('iframe.requestFullscreen declined or not permitted, switching to theater mode:', err);
+          enterTheaterMode();
+        });
+    } else {
+      enterTheaterMode();
     }
-
-    // 2. Fallback: Theater Mode (pseudo-fullscreen) for iOS Safari & unsupported environments
-    enterTheaterMode();
-  };
+  }, [isFullscreen, isTheaterMode]);
 
   // Close theater mode on Escape key
   useEffect(() => {
@@ -659,15 +736,17 @@ export default function Player({
                       type="button"
                       className="ani-player-ctrl-btn fs-btn"
                       onClick={toggleFullscreen}
-                      title={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
-                      aria-label={isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
+                      title={isFullscreen ? 'Kichraytirish / Chiqish' : 'To‘liq ekran'}
+                      aria-label={isFullscreen ? 'Kichraytirish / Chiqish' : 'To‘liq ekran'}
                     >
                       {isFullscreen ? (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        /* Compress / Exit Fullscreen (arrows pointing inward) */
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                           <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
                         </svg>
                       ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        /* Expand / Fullscreen (4 corners pointing outward) */
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                         </svg>
                       )}
