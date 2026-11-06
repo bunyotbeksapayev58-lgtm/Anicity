@@ -151,10 +151,10 @@ export default function Navbar({ user, profile, logoutAction }) {
                   onClick={() => setUserDropdown(!userDropdown)}
                   aria-label="Foydalanuvchi menyusi"
                 >
-                  <div className={`avatar-circle ${isVip ? 'has-vip-ring' : ''}`}>
+                  <div className={`avatar-circle w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden shrink-0 ${isVip ? 'has-vip-ring' : ''}`}>
                     {profile?.avatar_url
-                      ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
-                      : profileName.charAt(0).toUpperCase()}
+                      ? <img src={profile.avatar_url} alt={profileName} className="avatar-img-block w-full h-full object-cover block" />
+                      : <span className="avatar-initials">{profileName.charAt(0).toUpperCase()}</span>}
                   </div>
                   <span className="user-name-label">
                     {profileName}

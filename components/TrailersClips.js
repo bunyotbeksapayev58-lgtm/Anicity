@@ -183,6 +183,8 @@ export default function TrailersClips({ trailers = [] }) {
                   title={activeVideo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  loading="eager"
+                  referrerPolicy="no-referrer"
                   className="modal-iframe-player"
                 />
               )}

@@ -685,17 +685,29 @@ export default function Player({
           className={`ani-drive-container ${isTheaterMode ? 'is-theater-mode' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
         >
           {/* Responsive 16:9 Frame Box */}
-          <div className="ani-drive-frame-box">
+          <div className="ani-drive-frame-box w-full aspect-video bg-black rounded-xl overflow-hidden relative">
             <iframe
               key={iframeKey}
               ref={iframeRef}
               src={playableUrl}
-              className="ani-drive-iframe"
+              className="ani-drive-iframe w-full h-full border-0 absolute inset-0"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              loading="eager"
+              referrerPolicy="no-referrer"
               title={episodeTitle ? `${animeTitle} — ${episodeTitle}` : 'Google Drive Video Player'}
               onLoad={handleIframeLoad}
               onError={handleIframeError}
+            />
+
+            {/* Top-Right Drive Pop-out Guard (blocks accidental navigation to Drive app) */}
+            <div
+              className="ani-drive-popout-guard"
+              aria-hidden="true"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             />
 
             {/* Non-intrusive loading badge (pointer-events: none; located at top-left away from Google controls) */}

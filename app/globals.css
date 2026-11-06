@@ -236,16 +236,19 @@ input:focus, select:focus, textarea:focus {
 .topbar-inner {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 14px 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  padding: 12px 24px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 16px;
 }
 .topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 28px;
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 20px;
+  flex-shrink: 0;
 }
 .brand-pro {
   display: flex;
@@ -377,16 +380,49 @@ input:focus, select:focus, textarea:focus {
   padding: 4px 10px 4px 4px;
   border-radius: 999px;
 }
+/* User Avatar Circle - Mobile 36px (w-9 h-9), Desktop 40px (sm:w-10 sm:h-10) */
 .avatar-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  display: grid;
-  place-items: center;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #1a1a2e; /* Neutral dark base - no purple blob */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+@media (min-width: 640px) {
+  .avatar-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+}
+.avatar-circle::before,
+.avatar-circle::after {
+  display: none !important;
+  content: none !important;
+}
+.avatar-img-block {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: inherit;
+}
+.avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  user-select: none;
 }
 .user-name-label {
   font-size: 13px;
@@ -2450,6 +2486,23 @@ input:focus, select:focus, textarea:focus {
   }
   .topbar-inner {
     padding: 12px 18px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+  }
+  .topbar-left {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  .topbar-right {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
   }
   .hero-pro-section {
     min-height: 480px;
@@ -2508,14 +2561,16 @@ input:focus, select:focus, textarea:focus {
 .user-avatar-trigger {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  padding: 6px 14px 6px 8px;
+  padding: 5px 12px 5px 6px;
   border-radius: 999px;
   cursor: pointer;
   color: var(--text-main);
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .user-avatar-trigger:hover {
   background: var(--bg-surface-elevated);
@@ -4577,6 +4632,7 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
+  border-radius: 12px;
   overflow: hidden;
   contain: paint;
 }
@@ -4590,6 +4646,19 @@ input:focus, select:focus, textarea:focus {
   border: 0;
   display: block;
   background: #000;
+}
+
+/* Sleek Top-Right Drive Pop-out Guard (Blocks Google Drive redirect popout button) */
+.ani-drive-popout-guard {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 60px;
+  height: 48px;
+  z-index: 8;
+  background: transparent;
+  cursor: default;
+  touch-action: none;
 }
 
 /* Fullscreen directly on iframe */
@@ -5147,35 +5216,56 @@ input:focus, select:focus, textarea:focus {
 }
 
 .watch-nav-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: rgba(18, 18, 33, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  position: relative;
+  z-index: 10;
 }
 
 .watch-back-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
   transition: color 0.2s;
-  min-height: 44px; /* safe touch target */
+  min-height: 38px;
+  min-width: 0;
+  max-width: 75%;
+  overflow: hidden;
 }
 
 .watch-back-link:hover {
   color: #fff;
 }
 
+.watch-back-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .watch-ep-pill {
+  flex-shrink: 0;
   font-size: 12px;
   font-weight: 700;
-  background: rgba(108, 92, 231, 0.18);
+  background: rgba(108, 92, 231, 0.22);
   color: var(--accent2);
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(108, 92, 231, 0.3);
+  border: 1px solid rgba(108, 92, 231, 0.35);
+  white-space: nowrap;
 }
 
 .watch-under-player-box {
@@ -5626,21 +5716,50 @@ input:focus, select:focus, textarea:focus {
 
 @media (max-width: 480px) {
   .topbar-inner {
-    padding: 10px 12px;
+    padding: 8px 12px;
     gap: 8px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
   }
   .topbar-left {
     gap: 8px;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
   }
   .topbar-right {
     gap: 6px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
   }
   .user-name-label {
     display: none;
   }
   .user-avatar-trigger {
-    padding: 4px 8px 4px 4px;
-    gap: 6px;
+    padding: 3px 6px 3px 3px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .watch-page-pro {
+    padding: 12px 10px 48px;
+  }
+  .watch-nav-header {
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .watch-back-link {
+    font-size: 13px;
+    max-width: 70%;
+  }
+  .watch-ep-pill {
+    font-size: 11px;
+    padding: 4px 10px;
   }
   .brand-text {
     font-size: 18px;
@@ -7404,3 +7523,27 @@ input:focus, select:focus, textarea:focus {
   font-size: 18px;
   color: var(--stitch-primary);
 }
+
+/* ============================================================================
+   CORE MEDIA & MOBILE RESPONSIVE UTILITY CLASSES
+   ============================================================================ */
+.w-9 { width: 2.25rem !important; }
+.h-9 { height: 2.25rem !important; }
+@media (min-width: 640px) {
+  .sm\:w-10 { width: 2.5rem !important; }
+  .sm\:h-10 { height: 2.5rem !important; }
+}
+.rounded-full { border-radius: 9999px !important; }
+.rounded-xl { border-radius: 0.75rem !important; }
+.overflow-hidden { overflow: hidden !important; }
+.shrink-0 { flex-shrink: 0 !important; }
+.w-full { width: 100% !important; }
+.h-full { height: 100% !important; }
+.object-cover { object-fit: cover !important; }
+.block { display: block !important; }
+.aspect-video { aspect-ratio: 16 / 9 !important; }
+.bg-black { background-color: #000 !important; }
+.relative { position: relative !important; }
+.absolute { position: absolute !important; }
+.inset-0 { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
+.border-0 { border: 0 !important; }
