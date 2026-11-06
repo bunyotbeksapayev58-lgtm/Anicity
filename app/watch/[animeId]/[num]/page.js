@@ -66,8 +66,26 @@ export default async function WatchPage({ params }) {
     .limit(4);
   const relatedAnimes = relatedRaw || [];
 
+  const episodeJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': ['TVEpisode', 'VideoObject'],
+    name: ep.title || `${anime.title} ${ep.number}-qism`,
+    episodeNumber: ep.number,
+    partOfSeries: {
+      '@type': 'TVSeries',
+      name: anime.title,
+    },
+    thumbnailUrl: ep.thumbnail_url || anime.banner_url || anime.poster_url,
+    uploadDate: anime.created_at,
+    description: anime.description?.slice(0, 200),
+  };
+
   return (
     <div className="watch-page-pro">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(episodeJsonLd) }}
+      />
       {/* 1. Header Navigation Bar */}
       <div className="watch-nav-header">
         <Link href={`/anime/${animeId}`} className="watch-back-link">

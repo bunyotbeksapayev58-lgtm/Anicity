@@ -76,8 +76,23 @@ export default async function AnimeDetailsPage({ params }) {
     ? (targetEpisode ? `/watch/${id}/${targetEpisode.number}` : '#')
     : (targetEpisode ? `/login?next=/watch/${id}/${targetEpisode.number}` : `/login?next=/anime/${id}`);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TVSeries',
+    name: anime.title,
+    description: anime.description,
+    image: anime.poster_url || anime.banner_url,
+    datePublished: anime.year ? String(anime.year) : undefined,
+    genre: anime.genres || [],
+    numberOfEpisodes: episodes.length,
+  };
+
   return (
     <div className="anime-details-page-pro">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* 1. Cinematic Backdrop */}
       <div className="details-hero-backdrop-wrap">
         <div

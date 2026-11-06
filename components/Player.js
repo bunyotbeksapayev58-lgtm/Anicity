@@ -757,6 +757,10 @@ export default function Player({
                     onChange={handleSeek}
                     className="ani-player-seek-input"
                     aria-label="Video vaqtini surish"
+                    role="slider"
+                    aria-valuemin="0"
+                    aria-valuemax={Math.round(duration || 100)}
+                    aria-valuenow={Math.round(currentTime)}
                   />
                   <div
                     className="ani-player-seek-fill"
@@ -795,6 +799,10 @@ export default function Player({
                         onChange={handleVolume}
                         className="ani-player-volume-slider"
                         aria-label="Ovoz balandligi"
+                        role="slider"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
                       />
                     </div>
 

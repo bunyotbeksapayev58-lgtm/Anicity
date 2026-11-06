@@ -1,9 +1,12 @@
 import { json, fail, readJson, requireAdminPermission, getPublicContext } from '@/lib/api';
 import { validateAnime, validateEpisodes } from '@/lib/validate';
 import { logAssistantContentFailure } from '@/lib/assistant-audit';
+import { rateLimit } from '@/lib/rate-limit';
 
 // GET /api/animes?q=nom&limit=24&offset=0
 export async function GET(request) {
+  const rl = rateLimit('api:animes:get', request.headers, 60, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
   const { supabase } = await getPublicContext();
 
   const url = new URL(request.url);
@@ -26,6 +29,8 @@ export async function GET(request) {
 // POST /api/animes (admin)
 // body: { title, year, status, genres, description, poster_url, episodes: [...] }
 export async function POST(request) {
+  const rlPost = rateLimit('api:animes:post', request.headers, 20, 60);
+  if (!rlPost.allowed) return fail(rlPost.error, 429);
   const ctx = await requireAdminPermission('anime_create');
   if (ctx.error) return ctx.error;
 
