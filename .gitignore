@@ -34,3 +34,4 @@ yarn-error.log*
 backups/
 
 .vercel
+stitch_extracted/
