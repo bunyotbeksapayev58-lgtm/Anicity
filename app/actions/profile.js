@@ -13,19 +13,21 @@ export async function updateOwnProfile(_previousState, formData) {
   const displayNameInput = String(formData.get('display_name') || '').trim();
   if (displayNameInput.length > 80) return { error: 'Ism 80 belgidan oshmasligi kerak.' };
   const displayName = displayNameInput || null;
+
+  const bioInput = String(formData.get('bio') || '').trim();
+  if (bioInput.length > 500) return { error: 'Bio 500 belgidan oshmasligi kerak.' };
+  const bio = bioInput || null;
+
   const avatarAction = formData.get('avatarAction') === 'remove' ? 'remove' : 'save';
   const file = formData.get('avatar');
 
   const { data: currentProfile, error: profileReadError } = await supabase
-    .from('profiles').select('avatar_url').eq('id', user.id).single();
+    .from('profiles').select('avatar_url, bio, display_name').eq('id', user.id).single();
   if (profileReadError || !currentProfile) return { error: 'Profil ma’lumotlari topilmadi.' };
 
   let nextAvatarUrl = currentProfile.avatar_url || null;
-  if (nextAvatarUrl && !isSafeAvatarUrl(nextAvatarUrl, user.id)) {
-    nextAvatarUrl = null;
-  }
-
   let uploadedPath = null;
+
   if (avatarAction === 'remove') {
     nextAvatarUrl = null;
   } else if (file && typeof file !== 'string' && file.size > 0) {
@@ -44,9 +46,12 @@ export async function updateOwnProfile(_previousState, formData) {
     }
   }
 
-  if (!isSafeAvatarUrl(nextAvatarUrl, user.id)) {
-    if (uploadedPath) await supabase.storage.from('profile-avatars').remove([uploadedPath]);
-    return { error: 'Rasm manzili xavfsizlik talablariga javob bermaydi.' };
+  // If a new avatar was uploaded, ensure it passes security checks
+  if (nextAvatarUrl !== currentProfile.avatar_url && nextAvatarUrl !== null) {
+    if (!isSafeAvatarUrl(nextAvatarUrl, user.id)) {
+      if (uploadedPath) await supabase.storage.from('profile-avatars').remove([uploadedPath]);
+      return { error: 'Rasm manzili xavfsizlik talablariga javob bermaydi.' };
+    }
   }
 
   const { error: updateError } = await supabase.from('profiles').update({
@@ -59,6 +64,11 @@ export async function updateOwnProfile(_previousState, formData) {
     return { error: 'Profil saqlanmadi: ' + updateError.message };
   }
 
+  // Update bio if changed
+  if (bio !== currentProfile.bio) {
+    await supabase.from('profiles').update({ bio }).eq('id', user.id);
+  }
+
   const previousPath = getOwnedAvatarPath(currentProfile.avatar_url, user.id);
   if (previousPath && previousPath !== uploadedPath && nextAvatarUrl !== currentProfile.avatar_url) {
     await supabase.storage.from('profile-avatars').remove([previousPath]);
@@ -66,5 +76,5 @@ export async function updateOwnProfile(_previousState, formData) {
 
   revalidatePath('/profile');
   revalidatePath('/', 'layout');
-  return { success: true, message: 'Profilingiz yangilandi.' };
+  return { success: true, message: 'Profilingiz muvaffaqiyatli yangilandi!' };
 }

@@ -8,9 +8,11 @@ test('Stitch Neo-Cyber Profile & Edit Modal UI Integration', async () => {
   // 1. Check ProfileView.js
   const profileViewSrc = await read('../components/ProfileView.js');
 
-  // Verify modal is wired
+  // Verify modal is wired and accessible
   assert.ok(profileViewSrc.includes('ProfileEditModal'), 'ProfileView must import and render ProfileEditModal');
   assert.ok(profileViewSrc.includes('open-edit-modal-btn'), 'ProfileView must contain open-edit-modal-btn');
+  assert.ok(profileViewSrc.includes('open-edit-modal-hero-btn'), 'ProfileView must contain open-edit-modal-hero-btn');
+  assert.ok(profileViewSrc.includes('stitch-avatar-clickable'), 'ProfileView avatar must be clickable to edit');
   assert.ok(profileViewSrc.includes('setIsEditModalOpen(true)'), 'Trigger button must set isEditModalOpen to true');
 
   // Verify NO hardcoded mock demo data
@@ -24,6 +26,7 @@ test('Stitch Neo-Cyber Profile & Edit Modal UI Integration', async () => {
   assert.ok(profileViewSrc.includes('totalWatchedHours'), 'Watched hours must be calculated dynamically');
   assert.ok(profileViewSrc.includes('displayName'), 'Display name must be dynamic');
   assert.ok(profileViewSrc.includes('username'), 'Username must be dynamic');
+  assert.ok(profileViewSrc.includes('bio'), 'Bio must be passed and rendered');
 
   // 2. Check ProfileEditModal.js
   const modalSrc = await read('../components/ProfileEditModal.js');
@@ -49,6 +52,14 @@ test('Stitch Neo-Cyber Profile & Edit Modal UI Integration', async () => {
   assert.ok(cssSrc.includes('.stitch-hero-card'), 'CSS must define .stitch-hero-card');
   assert.ok(cssSrc.includes('.stitch-vip-card'), 'CSS must define .stitch-vip-card');
   assert.ok(cssSrc.includes('.stitch-avatar-hero-ring'), 'CSS must define .stitch-avatar-hero-ring');
+  assert.ok(cssSrc.includes('.stitch-btn-edit-hero'), 'CSS must define .stitch-btn-edit-hero');
+  assert.ok(cssSrc.includes('.stitch-avatar-clickable'), 'CSS must define .stitch-avatar-clickable');
+
+  // 5. Check app/actions/profile.js updates bio and preserves avatars safely
+  const actionSrc = await read('../app/actions/profile.js');
+  assert.ok(actionSrc.includes("formData.get('bio')"), 'Server action must read bio from formData');
+  assert.ok(actionSrc.includes('{ bio }'), 'Server action must update bio column');
+  assert.ok(actionSrc.includes('display_name: displayName'), 'Server action must update display_name column');
 
   console.log('✔ All Stitch Neo-Cyber Profile & Edit Modal integration assertions passed!');
 });

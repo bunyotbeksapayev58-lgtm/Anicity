@@ -178,6 +178,9 @@ export default function Navbar({ user, profile, logoutAction }) {
                     <Link href="/profile" className="dropdown-item">
                       <span>👤</span> Profilim
                     </Link>
+                    <Link href="/profile?edit=1" className="dropdown-item">
+                      <span>⚙️</span> Profilni tahrirlash
+                    </Link>
                     <Link href="/favorites" className="dropdown-item">
                       <span>🔖</span> Saqlanganlar
                     </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { updateOwnProfile } from '@/app/actions/profile';
 
 const initialState = { success: false, error: null, message: null };
@@ -14,6 +15,7 @@ export default function ProfileEditModal({
   email = '',
   bio = '',
 }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState(updateOwnProfile, initialState);
   const [preview, setPreview] = useState(avatarUrl || '');
   const [removeAvatar, setRemoveAvatar] = useState(false);
@@ -25,7 +27,7 @@ export default function ProfileEditModal({
   const formRef = useRef(null);
   const modalRef = useRef(null);
 
-  // Sync props when modal opens or props change
+  // Sync props when modal opens or initial values change
   useEffect(() => {
     if (isOpen) {
       setPreview(avatarUrl || '');
@@ -37,7 +39,7 @@ export default function ProfileEditModal({
     }
   }, [isOpen, avatarUrl, displayName, bio]);
 
-  // Clean up object URLs to prevent memory leaks
+  // Clean up blob URLs to prevent memory leaks
   useEffect(() => () => {
     if (preview && preview.startsWith('blob:')) {
       URL.revokeObjectURL(preview);
@@ -48,14 +50,15 @@ export default function ProfileEditModal({
   useEffect(() => {
     if (state?.success) {
       setSaveSuccess(true);
+      router.refresh();
       const timer = setTimeout(() => {
         onClose?.();
-      }, 1200);
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [state, onClose]);
+  }, [state, onClose, router]);
 
-  // Close on Escape key press & prevent body scroll
+  // Close on Escape key press & prevent background scroll
   useEffect(() => {
     if (!isOpen) return;
 
@@ -83,7 +86,7 @@ export default function ProfileEditModal({
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
       event.target.value = '';
-      setClientError('Faqat JPEG, PNG yoki WebP rasmlar 2 MB gacha qabul qilinadi.');
+      setClientError('Faqat JPEG, PNG yoki WebP rasmlar (maksimal 2 MB) qabul qilinadi.');
       return;
     }
 
@@ -202,7 +205,7 @@ export default function ProfileEditModal({
                     className="stitch-btn-delete"
                   >
                     <span className="material-symbols-outlined">delete</span>
-                    <span>Rasmni o‘chirish</span>
+                    <span>Rasmni olib tashlash</span>
                   </button>
                 </div>
               </div>
@@ -234,16 +237,16 @@ export default function ProfileEditModal({
                 <span className="stitch-input-icon material-symbols-outlined">badge</span>
               </div>
               <p className="stitch-input-hint">
-                Fikrlaringiz va jonli chatlarda aynan shu ism aks etadi.
+                Fikrlaringiz va profilingizda aynan shu ism aks etadi.
               </p>
             </div>
 
-            {/* Form Input 2: Username */}
+            {/* Form Input 2: Username (Read-only) */}
             <div className="stitch-form-field">
               <label className="stitch-form-label">
                 <span>Username / Foydalanuvchi nomi</span>
                 <span className="stitch-label-valid">
-                  <span className="material-symbols-outlined">verified</span> Mavjud va tasdiqlangan
+                  <span className="material-symbols-outlined">verified</span> Tizim identifikatori
                 </span>
               </label>
               <div className="stitch-input-wrap stitch-input-readonly">
@@ -257,7 +260,7 @@ export default function ProfileEditModal({
                 <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">check_circle</span>
               </div>
               <p className="stitch-input-hint">
-                Sizning unikal profil identifikatoringiz: @{username || 'user'}
+                Sizning unikal profil havolangiz: @{username || 'user'}
               </p>
             </div>
 
@@ -279,7 +282,7 @@ export default function ProfileEditModal({
                 <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">lock</span>
               </div>
               <p className="stitch-input-hint">
-                Bildirishnomalar va xavfsizlik login kodi ushbu pochtaga yuboriladi.
+                Xavfsizlik va kirish kodi ushbu pochtaga biriktirilgan.
               </p>
             </div>
 
@@ -300,7 +303,7 @@ export default function ProfileEditModal({
                 className="stitch-textarea"
               />
               <p className="stitch-input-hint">
-                Profilingizga kirgan boshqa anime muxlislari uchun qisqa izoh.
+                Profilingizga tashrif buyurgan boshqa muxlislar ushbu yozuvni ko‘rishadi.
               </p>
             </div>
 
@@ -345,6 +348,7 @@ export default function ProfileEditModal({
                 type="submit"
                 disabled={pending}
                 className="stitch-btn-save"
+                id="save-profile-btn"
               >
                 {pending ? (
                   <>

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ProfileEditModal from './ProfileEditModal';
+import ProfileEditor from './ProfileEditor';
 import AnimeCard from './AnimeCard';
 
 function formatSeconds(sec) {
@@ -23,8 +25,18 @@ export default function ProfileView({
   joinDate = 'Yaqinda',
   expDateFormatted = null,
 }) {
+  const searchParams = useSearchParams();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('favorites');
+
+  // Auto-open modal if ?edit=1 or #edit is in the URL
+  useEffect(() => {
+    if (searchParams?.get('edit') === '1') {
+      setIsEditModalOpen(true);
+    } else if (typeof window !== 'undefined' && window.location.hash === '#edit') {
+      setIsEditModalOpen(true);
+    }
+  }, [searchParams]);
 
   const isVip = subscription?.isVip;
   const displayName = profile?.display_name || profile?.username || user?.email?.split('@')[0] || 'Foydalanuvchi';
@@ -58,7 +70,19 @@ export default function ProfileView({
           <div className="stitch-hero-main">
             {/* Avatar & Core Metadata */}
             <div className="stitch-user-meta-group">
-              <div className="stitch-avatar-wrapper">
+              <div
+                className="stitch-avatar-wrapper stitch-avatar-clickable"
+                onClick={() => setIsEditModalOpen(true)}
+                title="Profil rasmini o‘zgartirish uchun bosing"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setIsEditModalOpen(true);
+                  }
+                }}
+              >
                 <div className={`stitch-avatar-hero-ring ${isVip ? 'has-vip-glow' : ''}`}>
                   {avatarUrl ? (
                     <img
@@ -72,6 +96,9 @@ export default function ProfileView({
                     </div>
                   )}
                 </div>
+                <span className="stitch-avatar-edit-overlay">
+                  <span className="material-symbols-outlined">photo_camera</span>
+                </span>
                 <span className="stitch-avatar-status-dot" title="Faol online">
                   <span className="stitch-dot-inner" />
                 </span>
@@ -95,6 +122,22 @@ export default function ProfileView({
                   </span>
                 </div>
 
+                {bio ? (
+                  <p className="stitch-user-bio">
+                    <span className="material-symbols-outlined">format_quote</span>
+                    <span>{bio}</span>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="stitch-user-bio-empty"
+                  >
+                    <span className="material-symbols-outlined">add_circle</span>
+                    <span>O‘zingiz haqingizda bio yozing</span>
+                  </button>
+                )}
+
                 <div className="stitch-badges-row">
                   {isVip ? (
                     <span className="stitch-badge-vip">
@@ -110,6 +153,17 @@ export default function ProfileView({
                   <span className="stitch-badge-id">
                     ID: #{user?.id?.slice(0, 8)?.toUpperCase()}
                   </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="stitch-btn-edit-hero"
+                    id="open-edit-modal-hero-btn"
+                    title="Ism, bio va avatarni tahrirlash"
+                  >
+                    <span className="material-symbols-outlined">edit</span>
+                    <span>Profilni tahrirlash</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -198,29 +252,28 @@ export default function ProfileView({
             </div>
 
             <div className="stitch-stat-item">
-              <div className="stitch-stat-icon stitch-stat-icon-pink">
-                <span className="material-symbols-outlined">favorite</span>
+              <div className="stitch-stat-icon stitch-stat-icon-gold">
+                <span className="material-symbols-outlined">bookmark</span>
               </div>
               <div>
                 <div className="stitch-stat-number">{favoritesList.length}</div>
-                <div className="stitch-stat-label">Sevimlilar</div>
+                <div className="stitch-stat-label">Saqlanganlar</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 2. Content Tabs & Dynamic Layout */}
+        {/* 2. Navigation Tabs Container */}
         <div className="stitch-tabs-container">
-          {/* Tab Header Strip */}
-          <div className="stitch-tab-strip">
-            <div className="stitch-tab-buttons">
+          <div className="stitch-tabs-bar">
+            <div className="stitch-tabs-scroll">
               <button
                 type="button"
                 onClick={() => setActiveTab('favorites')}
                 className={`stitch-tab-btn ${activeTab === 'favorites' ? 'is-active' : ''}`}
               >
-                <span className="material-symbols-outlined">favorite</span>
-                <span>Mening Sevimlilarim ({favoritesList.length})</span>
+                <span className="material-symbols-outlined">bookmark</span>
+                <span>Sevimlilar ({favoritesList.length})</span>
               </button>
 
               <button
@@ -239,6 +292,16 @@ export default function ProfileView({
               >
                 <span className="material-symbols-outlined">receipt_long</span>
                 <span>Obunalar Tarixi ({userSubs.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('edit')}
+                className={`stitch-tab-btn ${activeTab === 'edit' ? 'is-active' : ''}`}
+                id="profile-tab-edit-btn"
+              >
+                <span className="material-symbols-outlined">tune</span>
+                <span>⚙️ Tahrirlash / Sozlamalar</span>
               </button>
             </div>
           </div>
@@ -282,8 +345,8 @@ export default function ProfileView({
             <div className="stitch-tab-content">
               <div className="stitch-content-header">
                 <h2 className="stitch-content-title">
-                  <span className="material-symbols-outlined stitch-text-primary">history_toggle_off</span>
-                  <span>Ko‘rishlar Tarixi (So‘nggi faollik)</span>
+                  <span className="stitch-pulse-dot" />
+                  <span>Tomosha Tarixi</span>
                 </h2>
                 <span className="stitch-content-count">
                   Jami: {historyList.length} ta epizod
@@ -298,65 +361,70 @@ export default function ProfileView({
                     if (!anime || !ep) return null;
 
                     const pct = item.duration_sec > 0
-                      ? Math.min(100, Math.round((item.position_sec / item.duration_sec) * 100))
+                      ? Math.min(100, Math.round(((item.position_sec || 0) / item.duration_sec) * 100))
                       : 0;
-                    const posFormatted = formatSeconds(item.position_sec);
-                    const durFormatted = formatSeconds(item.duration_sec);
 
                     return (
-                      <Link
-                        key={`${anime.id}-${ep.number}`}
-                        href={`/watch/${anime.id}/${ep.number}`}
-                        className="stitch-history-card"
-                      >
-                        <div className="stitch-history-thumb">
+                      <div key={`${item.anime_id}-${item.episode_id}`} className="stitch-history-card">
+                        <div className="stitch-history-poster-wrap">
                           <img
                             src={anime.poster_url || '/placeholder.jpg'}
                             alt={anime.title}
-                            className="stitch-history-img"
+                            className="stitch-history-poster"
                           />
-                          <div className="stitch-history-play-overlay">
-                            <div className="stitch-history-play-btn">
-                              <span className="material-symbols-outlined">play_arrow</span>
-                            </div>
-                          </div>
-                          <div className="stitch-history-progress-line">
-                            <div
-                              className="stitch-history-progress-fill"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
+                          <Link
+                            href={`/watch/${anime.id}/${ep.number}`}
+                            className="stitch-history-play-overlay"
+                            aria-label={`${anime.title} ${ep.number}-qismni davom ettirish`}
+                          >
+                            <span className="material-symbols-outlined">play_arrow</span>
+                          </Link>
+                          <span className="stitch-history-badge">
+                            {ep.number}-qism
+                          </span>
                         </div>
 
                         <div className="stitch-history-info">
-                          <h4 className="stitch-history-title">{anime.title}</h4>
-                          <p className="stitch-history-sub">
-                            {ep.number}-qism • {posFormatted} / {durFormatted} ({pct}%)
-                          </p>
-                          <span className="stitch-history-time">
-                            {item.updated_at
-                              ? new Date(item.updated_at).toLocaleDateString('uz-UZ', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : 'Yaqinda'}
-                          </span>
+                          <h3 className="stitch-history-title" title={anime.title}>
+                            {anime.title}
+                          </h3>
+                          <div className="stitch-history-meta">
+                            <span>Qism {ep.number} {ep.title ? `— ${ep.title}` : ''}</span>
+                            <span>{pct}% ko‘rildi</span>
+                          </div>
+
+                          <div className="stitch-history-bar-track">
+                            <div
+                              className="stitch-history-bar-fill"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+
+                          <div className="stitch-history-card-footer">
+                            <span className="stitch-history-time">
+                              {formatSeconds(item.position_sec)} / {formatSeconds(item.duration_sec)}
+                            </span>
+                            <Link
+                              href={`/watch/${anime.id}/${ep.number}`}
+                              className="stitch-history-resume-btn"
+                            >
+                              Davom ettirish
+                            </Link>
+                          </div>
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
               ) : (
                 <div className="stitch-empty-state">
                   <span className="material-symbols-outlined stitch-empty-icon">smart_display</span>
-                  <h3 className="stitch-empty-title">Hozircha ko‘rish tarixi mavjud emas</h3>
+                  <h3 className="stitch-empty-title">Tomosha tarixi hali bo‘sh</h3>
                   <p className="stitch-empty-desc">
-                    Tomosha qilgan animelaringiz shu yerda saqlanadi va to‘xtagan joyingizdan davom ettirishingiz mumkin.
+                    Biror animeni tomosha qilishni boshlang va oxirgi qolgan joyingiz avtomatik saqlanadi.
                   </p>
                   <Link href="/catalog" className="stitch-btn-cta">
-                    Anime tanlash
+                    Animelarni tanlash
                   </Link>
                 </div>
               )}
@@ -368,8 +436,8 @@ export default function ProfileView({
             <div className="stitch-tab-content">
               <div className="stitch-content-header">
                 <h2 className="stitch-content-title">
-                  <span className="material-symbols-outlined stitch-text-gold">workspace_premium</span>
-                  <span>Obunalar Tarixi va To‘lovlar</span>
+                  <span className="stitch-pulse-dot" />
+                  <span>Obuna Tarixi va To‘lovlar</span>
                 </h2>
                 <span className="stitch-content-count">
                   Jami: {userSubs.length} ta yozuv
@@ -378,13 +446,13 @@ export default function ProfileView({
 
               {userSubs.length > 0 ? (
                 <div className="stitch-table-wrapper">
-                  <table className="stitch-table">
+                  <table className="stitch-pro-table">
                     <thead>
                       <tr>
-                        <th>Tarif rejasi</th>
+                        <th>Tarif Rejasi</th>
                         <th>Boshlangan sana</th>
                         <th>Tugash sanasi</th>
-                        <th>Berilish turi</th>
+                        <th>Turi</th>
                         <th>Holati</th>
                       </tr>
                     </thead>
@@ -450,6 +518,20 @@ export default function ProfileView({
                   </Link>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Tab Content: Profil Sozlamalari / Tahrirlash (Inline Tab) */}
+          {activeTab === 'edit' && (
+            <div className="stitch-tab-content">
+              <ProfileEditor
+                displayName={displayName}
+                avatarUrl={avatarUrl}
+                username={username}
+                email={email}
+                bio={bio}
+                onOpenModal={() => setIsEditModalOpen(true)}
+              />
             </div>
           )}
         </div>
