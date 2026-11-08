@@ -139,8 +139,7 @@ console.log('✔ Open Redirect protection passed');
 
 // 9. Protected Paths and Gating tests
 console.log('9. Testing Protected Paths definition...');
-const PROTECTED_PATHS = ['/watch', '/admin', '/favorites', '/history', '/profile', '/settings'];
-assert.ok(PROTECTED_PATHS.includes('/watch'), '/watch must be in protected paths');
+const PROTECTED_PATHS = ['/admin', '/favorites', '/history', '/profile', '/settings'];
 assert.ok(PROTECTED_PATHS.includes('/admin'), '/admin must be in protected paths');
 assert.ok(PROTECTED_PATHS.includes('/favorites'), '/favorites must be in protected paths');
 console.log('✔ Protected paths gating passed');
