@@ -55,15 +55,16 @@ test('3. Player.js implements HLS mounting, error recovery, quality switching, a
 });
 
 test('4. Playback Token generation, expiration, and resource binding', () => {
-  const secretKey = 'hls-playback-token-secret-key-123';
+  // Mock key for unit testing HMAC signature
+  const mockSigningKey = 'mock-hls-key';
   const validPayload = {
     userId: 'user-vip-77',
     episodeId: 'episode-uuid-999',
     ttlSeconds: 3600,
   };
 
-  const token = generatePlaybackToken(validPayload, secretKey);
-  const verification = verifyPlaybackToken(token, secretKey);
+  const token = generatePlaybackToken(validPayload, mockSigningKey);
+  const verification = verifyPlaybackToken(token, mockSigningKey);
   assert.equal(verification.valid, true);
   assert.equal(verification.payload.userId, 'user-vip-77');
   assert.equal(verification.payload.episodeId, 'episode-uuid-999');
@@ -77,8 +78,8 @@ test('4. Playback Token generation, expiration, and resource binding', () => {
   assert.notEqual(verification.payload.episodeId, mismatchedEpisodeId, 'Token must NOT match different episode resource');
 
   // Expired token check
-  const expiredToken = generatePlaybackToken({ ...validPayload, ttlSeconds: -10 }, secretKey);
-  const expiredVerification = verifyPlaybackToken(expiredToken, secretKey);
+  const expiredToken = generatePlaybackToken({ ...validPayload, ttlSeconds: -10 }, mockSigningKey);
+  const expiredVerification = verifyPlaybackToken(expiredToken, mockSigningKey);
   assert.equal(expiredVerification.valid, false);
   assert.equal(expiredVerification.reason, 'Token expired');
 });

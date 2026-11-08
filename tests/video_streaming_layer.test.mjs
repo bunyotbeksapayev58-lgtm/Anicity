@@ -61,18 +61,18 @@ test('2. getPlaybackSource normalizes URLs and resolves MIME types', () => {
 });
 
 test('3. Playback token generation and cryptographic HMAC verification', () => {
-  const secretKey = 'super-secret-production-signing-key';
+  const mockSigningKey = 'mock-video-key';
   const payload = {
     userId: 'user-uuid-1234',
     episodeId: 'episode-uuid-5678',
     ttlSeconds: 300,
   };
 
-  const token = generatePlaybackToken(payload, secretKey);
+  const token = generatePlaybackToken(payload, mockSigningKey);
   assert.ok(typeof token === 'string' && token.includes('.'), 'Token must be b64.signature format');
 
   // Successful verification
-  const verification = verifyPlaybackToken(token, secretKey);
+  const verification = verifyPlaybackToken(token, mockSigningKey);
   assert.equal(verification.valid, true);
   assert.equal(verification.payload.userId, 'user-uuid-1234');
   assert.equal(verification.payload.episodeId, 'episode-uuid-5678');
@@ -80,7 +80,7 @@ test('3. Playback token generation and cryptographic HMAC verification', () => {
 
   // Signature tampering
   const tamperedToken = token.slice(0, -4) + 'abcd';
-  const tamperedResult = verifyPlaybackToken(tamperedToken, secretKey);
+  const tamperedResult = verifyPlaybackToken(tamperedToken, mockSigningKey);
   assert.equal(tamperedResult.valid, false);
   assert.equal(tamperedResult.reason, 'Signature mismatch');
 
@@ -90,8 +90,8 @@ test('3. Playback token generation and cryptographic HMAC verification', () => {
   assert.equal(wrongKeyResult.reason, 'Signature mismatch');
 
   // Expired token test
-  const expiredToken = generatePlaybackToken({ ...payload, ttlSeconds: -10 }, secretKey);
-  const expiredResult = verifyPlaybackToken(expiredToken, secretKey);
+  const expiredToken = generatePlaybackToken({ ...payload, ttlSeconds: -10 }, mockSigningKey);
+  const expiredResult = verifyPlaybackToken(expiredToken, mockSigningKey);
   assert.equal(expiredResult.valid, false);
   assert.equal(expiredResult.reason, 'Token expired');
 });
