@@ -28,10 +28,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  if (!admin) {
-    return NextResponse.json({ error: 'Database admin configuration error' }, { status: 500 });
-  }
+  // Database admin client is initialized per authenticated provider handler
 
   // ==========================================
   // 1. PAYME JSON-RPC 2.0 ROUTING
