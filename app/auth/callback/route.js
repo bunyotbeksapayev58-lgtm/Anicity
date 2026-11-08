@@ -19,8 +19,8 @@ export async function GET(request) {
   const type = url.searchParams.get('type');
   const errorParam = url.searchParams.get('error') || url.searchParams.get('error_description');
 
-  // Origin'ni xavfsiz aniqlaymiz (x-forwarded headers yoki canonical production domain)
-  const origin = getSiteUrl(request.headers);
+  // Origin'ni xavfsiz kanonik konfiguratsiyadan aniqlaymiz (Host header injection dan himoyalangan)
+  const origin = getSiteUrl();
 
   // Supabase xato bilan qaytargan bo'lsa (masalan havola muddati tugagan yoki OAuth bekor qilingan)
   if (errorParam) {

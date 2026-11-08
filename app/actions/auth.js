@@ -9,15 +9,6 @@ import { rateLimit, checkDistributedRateLimit } from '@/lib/rate-limit';
 
 const LOGIN_ERR = 'Login yoki parol noto‘g‘ri';
 
-async function resolveSiteUrl() {
-  try {
-    const h = await headers();
-    return getSiteUrl(h);
-  } catch {
-    return getSiteUrl();
-  }
-}
-
 export async function login(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
   const supabase = await createClient();
@@ -52,7 +43,7 @@ export async function login(prevState, formData) {
     const msg = String(error.message || '').toLowerCase();
     if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
       return {
-        error: 'Emailingiz hali tasdiqlanmagan. Iltimos, emailingizga yuborilgan tasdiqlash havolasini bosing yoki Supabase boshqaruv panelida "Confirm email" bandini o‘chiring.',
+        error: 'Emailingiz hali tasdiqlanmagan. Iltimos, emailingizga yuborilgan tasdiqlash havolasini bosing.',
       };
     }
     return { error: LOGIN_ERR };
@@ -86,21 +77,29 @@ export async function register(prevState, formData) {
   const next = String(formData.get('next') || '/');
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
-  const siteUrl = await resolveSiteUrl();
+  const siteUrl = getSiteUrl();
+  const emailRedirectTo = `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username },
-      emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+      emailRedirectTo,
     },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    const msg = String(error.message || '');
+    if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('user already exists')) {
+      return { error: 'Ushbu email bilan allaqachon ro‘yxatdan o‘tilgan' };
+    }
+    return { error: error.message };
+  }
 
   // Email tasdiqlash yoqilgan bo'lsa sessiya bo'lmaydi
   if (!data.session) {
     return {
-      message: 'Emailingizga tasdiqlash xati yuborildi. Iltimos, emailingizdagi tasdiqlash havolasini bosing. (Eslatma: Agar localhost xatosi chiqsa, Supabase panelida "Confirm email"ni o‘chirib qo‘ying).',
+      message: 'Emailingizga tasdiqlash havolasi yuborildi. Iltimos, pochtangizni tekshirib, havolani tasdiqlang.',
     };
   }
   redirect(safeNext);
@@ -113,7 +112,7 @@ export async function forgotPassword(prevState, formData) {
   if (!limit.allowed) return { error: limit.error };
 
   const email = String(formData.get('email') || '').trim();
-  const siteUrl = await resolveSiteUrl();
+  const siteUrl = getSiteUrl();
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
   });

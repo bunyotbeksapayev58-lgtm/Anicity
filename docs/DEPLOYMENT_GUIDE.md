@@ -75,10 +75,14 @@ Ensure the following storage buckets exist under **Storage -> Buckets**:
 
 ### 2.3 Supabase Authentication Configuration
 Under **Authentication -> URL Configuration**:
-- **Site URL:** Set to your production URL (e.g., `https://anicity.uz` or `https://anicity-app.vercel.app`).
-- **Redirect URLs:** Add:
-  - `http://localhost:3000/auth/callback` (for local development)
-  - `https://your-domain.vercel.app/auth/callback` (for production)
+- **Site URL:** Set to your production URL: https://anicity-app.vercel.app (CRITICAL: Do NOT leave this as http://localhost:3000 in production, otherwise email confirmation links will fail with ERR_CONNECTION_REFUSED).
+- **Redirect URLs:** Add the exact callback URLs:
+  - https://anicity-app.vercel.app/auth/callback (Primary production callback)
+  - https://anicity-app.vercel.app/** (Wildcard production routes)
+  - https://*.vercel.app/auth/callback (Vercel preview & staging deployments)
+  - https://*.vercel.app/** (Vercel wildcard)
+  - http://localhost:3000/auth/callback (Local development callback)
+  - http://localhost:3000/** (Local development wildcard)
 
 ---
 
