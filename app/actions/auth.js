@@ -141,3 +141,76 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect('/login');
 }
+
+export async function updateOwnCredentials(prevState, formData) {
+  const reqHeaders = await headers().catch(() => null);
+  const supabase = await createClient();
+  const limit = await checkDistributedRateLimit('auth:credentials', reqHeaders, 5, 60, supabase);
+  if (!limit.allowed) return { error: limit.error };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Tizimga kirilmagan. Qaytadan kiring.' };
+
+  const newUsername = String(formData.get('username') || '').trim();
+  const newPassword = String(formData.get('new_password') || '').trim();
+  const confirmPassword = String(formData.get('confirm_password') || '').trim();
+
+  let updatedUsername = false;
+  let updatedPassword = false;
+
+  // 1. Username yangilash
+  if (newUsername) {
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(newUsername)) {
+      return { error: 'Username 3–20 ta harf, raqam yoki _ dan iborat bo‘lsin' };
+    }
+
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('username', escapeLike(newUsername))
+      .neq('id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      return { error: 'Bu username band. Boshqa username tanlang.' };
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ username: newUsername })
+      .eq('id', user.id);
+
+    if (profileError) return { error: 'Username saqlanmadi: ' + profileError.message };
+    updatedUsername = true;
+  }
+
+  // 2. Parolni yangilash
+  if (newPassword || confirmPassword) {
+    if (newPassword.length < 6) {
+      return { error: 'Yangi parol kamida 6 ta belgidan iborat bo‘lishi kerak' };
+    }
+    if (newPassword.length > 72) {
+      return { error: 'Parol 72 belgidan oshmasligi kerak' };
+    }
+    if (newPassword !== confirmPassword) {
+      return { error: 'Kiritilgan yangi parollar bir-biriga mos kelmadi' };
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+    if (authError) return { error: 'Parol yangilanmadi: ' + authError.message };
+    updatedPassword = true;
+  }
+
+  if (!updatedUsername && !updatedPassword) {
+    return { error: 'Hech qanday o‘zgarish kiritilmadi' };
+  }
+
+  return {
+    success: true,
+    message: updatedPassword && updatedUsername
+      ? 'Login va parol muvaffaqiyatli yangilandi!'
+      : updatedPassword
+        ? 'Parolingiz muvaffaqiyatli yangilandi!'
+        : 'Login (username) muvaffaqiyatli yangilandi!',
+  };
+}

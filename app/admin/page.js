@@ -13,6 +13,7 @@ import {
   toggleTrailerActive,
   toggleUserVip,
   toggleUserSuspension,
+  updateUserRole,
 } from '@/app/actions/admin';
 import { isAdminRole } from '@/lib/roles';
 import { getAdminUserPageCount, normalizeAdminUserQuery } from '@/lib/admin-pagination';
@@ -136,6 +137,9 @@ export default async function AdminPage({ searchParams }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link href="/profile?edit=credentials" className="btn ghost sm" title="O‘z login va parolingizni yangilang">
+            🔐 Parol va Login
+          </Link>
           <Link href="/" className="btn ghost sm">
             ← Saytni ochish
           </Link>
@@ -544,7 +548,36 @@ export default async function AdminPage({ searchParams }) {
                           {u.display_name && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{u.display_name}</div>}
                         </td>
                         <td>
-                          <span className={`badge-role ${u.role || 'user'}`}>{(u.role || 'user').toUpperCase()}</span>
+                          <form action={updateUserRole} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <select
+                              name="role"
+                              defaultValue={u.role || 'user'}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                borderRadius: '6px',
+                                background: '#131722',
+                                color: u.role === 'owner' ? '#f59e0b' : u.role === 'admin' ? '#38bdf8' : u.role === 'moderator' ? '#34d399' : '#94a3b8',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <option value="user">USER</option>
+                              <option value="moderator">MODERATOR</option>
+                              <option value="admin">ADMIN</option>
+                              {profile?.role === 'owner' && <option value="owner">OWNER</option>}
+                            </select>
+                            <button
+                              type="submit"
+                              className="btn ghost sm"
+                              style={{ padding: '3px 8px', fontSize: '11px', lineHeight: 1 }}
+                              title="Foydalanuvchi rolini saqlash"
+                            >
+                              Saqlash
+                            </button>
+                          </form>
                         </td>
                         <td>
                           {isVipUser ? (

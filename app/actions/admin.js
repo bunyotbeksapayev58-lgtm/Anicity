@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { toPlayableUrl, driveProblem } from '@/lib/drive';
 import { removePosterByUrl, removeFileByUrl, uploadImageToBucket, uploadMediaToBucket, validateImageFile, validateVideoFile } from '@/lib/storage';
 import { validateSingleEpisode, validateAnime } from '@/lib/validate';
@@ -736,6 +737,53 @@ export async function toggleUserVip(formData) {
   revalidatePath('/admin');
   revalidatePath('/profile');
   revalidatePath('/premium');
+}
+
+
+export async function updateUserRole(formData) {
+  const supabase = await createClient();
+  const actor = await assertAdmin(supabase);
+  const userId = String(formData.get('userId') || '').trim();
+  const newRole = String(formData.get('role') || '').trim().toLowerCase();
+  if (!userId) throw new Error('Foydalanuvchi ID topilmadi');
+  if (!['user', 'moderator', 'admin', 'owner'].includes(newRole)) {
+    throw new Error('Noto‘g‘ri rol tanlandi');
+  }
+
+  // Xavfsizlik: Faqat Owner boshqa Owner tayinlay oladi
+  if (newRole === 'owner' && actor.role !== 'owner') {
+    throw new Error('Faqat Bosh admin (Owner) boshqa owner tayinlay oladi');
+  }
+
+  // Xavfsizlik: Bosh admin rolini oddiy admin o‘zgartira olmaydi
+  const { data: targetProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+  if (targetProfile?.role === 'owner' && actor.role !== 'owner') {
+    throw new Error('Bosh admin (Owner) rolini o‘zgartirish huquqingiz yo‘q');
+  }
+
+  // 1. Try service role client if available (for full owner privileges)
+  const adminClient = createAdminClient();
+  if (adminClient) {
+    const { error: directError } = await adminClient
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId);
+    if (directError) throw new Error(directError.message);
+  } else {
+    // 2. Call PostgreSQL RPC set_user_role
+    const { error: rpcError } = await supabase.rpc('set_user_role', {
+      p_target: userId,
+      p_new_role: newRole,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/profile');
 }
 
 export async function toggleUserSuspension(formData) {

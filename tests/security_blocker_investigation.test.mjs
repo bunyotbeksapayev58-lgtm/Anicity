@@ -33,7 +33,7 @@ test('TASK 1.2: All exported admin actions must invoke assertAdmin', () => {
   }
   if (currentFn) exportedFns.push(currentFn);
 
-  assert.equal(exportedFns.length, 23, 'Must have exactly 23 exported functions in admin.js');
+  assert.equal(exportedFns.length, 24, 'Must have exactly 24 exported functions in admin.js');
 
   for (const fn of exportedFns) {
     const body = fn.code.join('\n');
@@ -49,6 +49,7 @@ test('TASK 1.3: Sensitive billing and role management functions require Admin/Ow
   const sensitiveFns = [
     'toggleUserVip',
     'toggleUserSuspension',
+    'updateUserRole',
     'createSubscriptionPlan',
     'updateSubscriptionPlan',
     'togglePlanActive',

@@ -181,15 +181,87 @@ export default function AdminSubscriptionPlans({ plans = [] }) {
             </div>
 
             <div className="field">
-              <label>Afzalliklar / Xususiyatlar (Har bir qatorga bittadan)</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ margin: 0 }}>Afzalliklar / Xususiyatlar (Har bir qatorga bittadan)</label>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={() => {
+                    const el = formRef.current?.elements['benefits'];
+                    if (el) {
+                      const val = el.value.trim();
+                      const add = '🎬 Videolarni tomosha qilish ruxsati (Pullik streaming)';
+                      if (!val.includes(add)) {
+                        el.value = val ? `${val}\n${add}` : add;
+                      }
+                    }
+                  }}
+                >
+                  + 🎬 Pullik Video Ruxsati
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={() => {
+                    const el = formRef.current?.elements['benefits'];
+                    if (el) {
+                      const val = el.value.trim();
+                      const add = '⚡ 1080p va 4K Ultra HD video sifati';
+                      if (!val.includes(add)) {
+                        el.value = val ? `${val}\n${add}` : add;
+                      }
+                    }
+                  }}
+                >
+                  + ⚡ 4K / 1080p Sifat
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={() => {
+                    const el = formRef.current?.elements['benefits'];
+                    if (el) {
+                      const val = el.value.trim();
+                      const add = '🚫 100% Reklamasiz toza tomosha';
+                      if (!val.includes(add)) {
+                        el.value = val ? `${val}\n${add}` : add;
+                      }
+                    }
+                  }}
+                >
+                  + 🚫 Reklamasiz
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={() => {
+                    const el = formRef.current?.elements['benefits'];
+                    if (el) {
+                      const val = el.value.trim();
+                      const add = '👑 VIP profil nishoni';
+                      if (!val.includes(add)) {
+                        el.value = val ? `${val}\n${add}` : add;
+                      }
+                    }
+                  }}
+                >
+                  + 👑 VIP Nishon
+                </button>
+              </div>
               <textarea
                 name="benefits"
                 rows={4}
                 defaultValue={(editingPlan?.benefits || []).join('\n')}
-                placeholder={'1080p Full HD sifat\n100% Reklamasiz tomosha\nYangi premyeralar navbatsiz\nVIP nishon'}
+                placeholder={'🎬 Videolarni tomosha qilish ruxsati (Pullik streaming)\n1080p Full HD va 4K sifat\n100% Reklamasiz tomosha\nVIP profil nishoni'}
                 disabled={isPending}
               />
-              <p className="hint">Har bir qator obuna sahifasida «✓» belgisi bilan ko‘rsatiladi.</p>
+              <p className="hint">Tugmalar orqali videolarni pullik tomosha qilish huquqini va boshqa imtiyozlarni tezda qo‘shishingiz mumkin.</p>
             </div>
 
             <div className="row2" style={{ alignItems: 'center', marginTop: 8 }}>
@@ -235,6 +307,9 @@ export default function AdminSubscriptionPlans({ plans = [] }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <b style={{ fontSize: 16, color: '#fff' }}>{p.name}</b>
                       {p.is_popular && <span className="save-badge">🔥 OMMABOP</span>}
+                      {p.benefits?.some((b) => /video|streaming|tomosha/i.test(b)) && (
+                        <span className="badge-vip-pill" style={{ fontSize: 10, padding: '2px 6px' }}>🎬 PULLIK VIDEO</span>
+                      )}
                       <span className={p.is_active ? 'badge-published' : 'badge-draft'}>
                         {p.is_active ? '● Faol' : '○ Nofaol'}
                       </span>

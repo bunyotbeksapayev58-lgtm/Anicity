@@ -352,9 +352,23 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
 
             {/* Dedicated Google Drive URL input */}
             <div className="field">
-              <label>
-                Google Drive Video Havolasi (yoki to‘g‘ridan-to‘g‘ri MP4) *
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ margin: 0 }}>
+                  Google Drive Video Havolasi (yoki to‘g‘ridan-to‘g‘ri MP4) *
+                </label>
+                {videoUrl && (
+                  <a
+                    href={videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn ghost sm"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    title="Videoni yangi oynada ochib tekshirish"
+                  >
+                    🔗 Havolani tekshirish
+                  </a>
+                )}
+              </div>
               <input
                 type="text"
                 value={videoUrl}
@@ -369,20 +383,24 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   ⚠️ {driveWarning}
                 </div>
               )}
+              {videoUrl && !driveWarning && (
+                <div style={{ color: '#10b981', fontSize: 12, marginTop: 4 }}>
+                  ✓ Video havolasi to‘g‘ri kiritildi.
+                </div>
+              )}
               <p className="hint" style={{ marginTop: 4 }}>
-                Bu maydon video faylni yuklamaydi — faqat mavjud video manbasining URL manzilini saqlaydi.{' '}
-                Google Drive video faylida: <b>Ulashish (Share) → «Havolaga ega bo‘lgan har kim» (Anyone with the link)</b> parametrini yoqing.
-                Papka havolasi qabul qilinmaydi.
+                Google Drive video faylida: <b>Ulashish (Share) → «Havolaga ega bo‘lgan har kim» (Anyone with the link)</b> yoqilgan bo‘lishi shart.
+                Papka havolasi emas, aniq video fayl havolasi bo‘lishi lozim.
               </p>
             </div>
 
             <div className="row2">
               <div className="field">
-                <label>Video Sifati</label>
+                <label>Video Sifati va Kirish Huquqi</label>
                 <select value={quality} onChange={(e) => setQuality(e.target.value)} disabled={isPending}>
-                  <option value="1080p">1080p Full HD</option>
+                  <option value="1080p">1080p Full HD (Ommaviy)</option>
                   <option value="720p">720p HD</option>
-                  <option value="4K">4K Ultra HD</option>
+                  <option value="4K">👑 4K Ultra HD (Faqat VIP Obunachilar / Pullik)</option>
                 </select>
               </div>
 
@@ -397,6 +415,20 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                   disabled={isPending || assistant}
                 />
               </div>
+            </div>
+
+            <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, padding: '8px 12px', background: quality === '4K' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)', borderRadius: 8, border: quality === '4K' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <input
+                type="checkbox"
+                id="ep_requires_vip"
+                checked={quality === '4K'}
+                onChange={(e) => setQuality(e.target.checked ? '4K' : '1080p')}
+                disabled={isPending}
+                style={{ width: 'auto', cursor: 'pointer' }}
+              />
+              <label htmlFor="ep_requires_vip" style={{ cursor: 'pointer', margin: 0, fontWeight: 600, color: quality === '4K' ? '#f59e0b' : 'var(--text-main)' }}>
+                👑 Ushbu qismni tomosha qilishni pullik qilish (Faqat VIP Obunachilar)
+              </label>
             </div>
 
             {thumbnailPreview && (
@@ -491,6 +523,9 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                       </b>
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span className="badge-quality">{ep.quality || '1080p'}</span>
+                        {ep.quality === '4K' && (
+                          <span className="badge-vip-pill" style={{ fontSize: 10, padding: '1px 6px' }}>👑 VIP / Pullik</span>
+                        )}
                         <span className={ep.is_published !== false ? 'badge-published' : 'badge-draft'}>
                           {ep.is_published !== false ? '● Ochiq' : '○ Qoralama'}
                         </span>

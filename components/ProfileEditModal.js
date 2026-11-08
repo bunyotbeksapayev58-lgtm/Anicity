@@ -1,8 +1,9 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { updateOwnProfile } from '@/app/actions/profile';
+import { updateOwnCredentials } from '@/app/actions/auth';
 
 const initialState = { success: false, error: null, message: null };
 
@@ -16,6 +17,10 @@ export default function ProfileEditModal({
   bio = '',
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeModalTab, setActiveModalTab] = useState('profile'); // 'profile' | 'security'
+
+  // Profile Action State
   const [state, action, pending] = useActionState(updateOwnProfile, initialState);
   const [preview, setPreview] = useState(avatarUrl || '');
   const [removeAvatar, setRemoveAvatar] = useState(false);
@@ -23,8 +28,18 @@ export default function ProfileEditModal({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [bioText, setBioText] = useState(bio || '');
   const [displayNameVal, setDisplayNameVal] = useState(displayName || '');
+
+  // Credentials Action State
+  const [credState, credAction, credPending] = useActionState(updateOwnCredentials, initialState);
+  const [newUsername, setNewUsername] = useState(username || '');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [credClientError, setCredClientError] = useState('');
+  const [credSuccess, setCredSuccess] = useState(false);
+
   const fileInput = useRef(null);
   const formRef = useRef(null);
+  const credFormRef = useRef(null);
   const modalRef = useRef(null);
 
   // Sync props when modal opens or initial values change
@@ -36,8 +51,18 @@ export default function ProfileEditModal({
       setSaveSuccess(false);
       setDisplayNameVal(displayName || '');
       setBioText(bio || '');
+
+      setNewUsername(username || '');
+      setNewPassword('');
+      setConfirmPassword('');
+      setCredClientError('');
+      setCredSuccess(false);
+
+      if (searchParams?.get('edit') === 'credentials') {
+        setActiveModalTab('security');
+      }
     }
-  }, [isOpen, avatarUrl, displayName, bio]);
+  }, [isOpen, avatarUrl, displayName, bio, username, searchParams]);
 
   // Clean up blob URLs to prevent memory leaks
   useEffect(() => () => {
@@ -46,7 +71,7 @@ export default function ProfileEditModal({
     }
   }, [preview]);
 
-  // Handle successful submission
+  // Handle successful profile submission
   useEffect(() => {
     if (state?.success) {
       setSaveSuccess(true);
@@ -58,12 +83,26 @@ export default function ProfileEditModal({
     }
   }, [state, onClose, router]);
 
+  // Handle successful credentials submission
+  useEffect(() => {
+    if (credState?.success) {
+      setCredSuccess(true);
+      router.refresh();
+      const timer = setTimeout(() => {
+        setCredSuccess(false);
+        setNewPassword('');
+        setConfirmPassword('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [credState, router]);
+
   // Close on Escape key press & prevent background scroll
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !pending) {
+      if (e.key === 'Escape' && !pending && !credPending) {
         onClose?.();
       }
     };
@@ -76,7 +115,7 @@ export default function ProfileEditModal({
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = originalOverflow;
     };
-  }, [isOpen, pending, onClose]);
+  }, [isOpen, pending, credPending, onClose]);
 
   if (!isOpen) return null;
 
@@ -99,20 +138,19 @@ export default function ProfileEditModal({
     if (fileInput.current) fileInput.current.value = '';
     setPreview('');
     setRemoveAvatar(true);
-    setClientError('');
   };
 
   const onCancel = () => {
-    formRef.current?.reset();
     if (fileInput.current) fileInput.current.value = '';
     setPreview(avatarUrl || '');
     setRemoveAvatar(false);
     setClientError('');
+    setCredClientError('');
     onClose?.();
   };
 
   const handleBackdropClick = (e) => {
-    if (e.target === modalRef.current && !pending) {
+    if (e.target === modalRef.current && !pending && !credPending) {
       onClose?.();
     }
   };
@@ -136,10 +174,10 @@ export default function ProfileEditModal({
             </div>
             <div>
               <h3 id="edit-profile-modal-title" className="stitch-modal-title">
-                Profil ma’lumotlarini tahrirlash
+                Profil va Xavfsizlik Sozlamalari
               </h3>
               <p className="stitch-modal-subtitle">
-                Cyber Jamiyatdagi shaxsiy profilingiz sozlamalari
+                Shaxsiy profil, login va parolni tahrirlash
               </p>
             </div>
           </div>
@@ -147,7 +185,7 @@ export default function ProfileEditModal({
             type="button"
             className="stitch-modal-close-btn"
             onClick={onCancel}
-            disabled={pending}
+            disabled={pending || credPending}
             title="Yopish"
             aria-label="Yopish"
           >
@@ -155,224 +193,324 @@ export default function ProfileEditModal({
           </button>
         </div>
 
-        {/* Modal Body / Form */}
-        <form ref={formRef} action={action} className="stitch-modal-form">
-          <div className="stitch-modal-body">
-            {/* Avatar Management Section */}
-            <div className="stitch-avatar-card">
-              <div className="stitch-avatar-preview-wrap">
-                <div className="stitch-avatar-ring">
+        {/* Modal Navigation Tabs */}
+        <div style={{ display: 'flex', gap: 12, padding: '0 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(255, 255, 255, 0.02)' }}>
+          <button
+            type="button"
+            onClick={() => setActiveModalTab('profile')}
+            style={{
+              padding: '12px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeModalTab === 'profile' ? '2px solid #00CEC9' : '2px solid transparent',
+              color: activeModalTab === 'profile' ? '#00CEC9' : 'var(--text-muted)',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>badge</span>
+            <span>Profil Ma’lumotlari</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveModalTab('security')}
+            style={{
+              padding: '12px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeModalTab === 'security' ? '2px solid #00CEC9' : '2px solid transparent',
+              color: activeModalTab === 'security' ? '#00CEC9' : 'var(--text-muted)',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>lock</span>
+            <span>🔐 Login va Parol</span>
+          </button>
+        </div>
+
+        {/* TAB 1: Profile Details Form */}
+        {activeModalTab === 'profile' && (
+          <form ref={formRef} action={action} className="stitch-modal-form">
+            <div className="stitch-modal-body">
+              {/* Avatar Upload Block */}
+              <div className="stitch-avatar-upload-block">
+                <div className="stitch-avatar-preview-ring">
                   {preview ? (
-                    <img
-                      src={preview}
-                      alt="Profil rasmi"
-                      className="stitch-avatar-img"
-                    />
+                    <img src={preview} alt="Avatar preview" className="stitch-avatar-preview-img" />
                   ) : (
-                    <div className="stitch-avatar-fallback">
-                      {(displayNameVal || username || email || 'A').charAt(0).toUpperCase()}
+                    <div className="stitch-avatar-preview-fallback">
+                      {(displayNameVal || username || 'U').charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="stitch-avatar-camera-badge" title="Avatar">
-                  <span className="material-symbols-outlined">photo_camera</span>
-                </span>
-              </div>
-
-              <div className="stitch-avatar-details">
-                <h4 className="stitch-avatar-heading">Profil Rasmi (Avatar)</h4>
-                <p className="stitch-avatar-hint">
-                  Tavsiya etiladi: Kamida 500x500px, JPEG, PNG yoki WebP formatda (2 MB gacha).
-                </p>
                 <div className="stitch-avatar-actions">
-                  <label htmlFor="modal-profile-avatar" className="stitch-btn-upload">
-                    <span className="material-symbols-outlined">cloud_upload</span>
-                    <span>Rasm yuklash</span>
-                  </label>
-                  <input
-                    ref={fileInput}
-                    id="modal-profile-avatar"
-                    name="avatar"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={onImageChange}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={onRemove}
-                    disabled={!preview || pending}
-                    className="stitch-btn-delete"
-                  >
-                    <span className="material-symbols-outlined">delete</span>
-                    <span>Rasmni olib tashlash</span>
-                  </button>
+                  <span className="stitch-avatar-label">Profil rasmi (Avatar)</span>
+                  <div className="stitch-avatar-buttons">
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      name="avatar"
+                      id="avatar-input"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onImageChange}
+                      className="stitch-visually-hidden"
+                      disabled={pending}
+                    />
+                    <label htmlFor="avatar-input" className="stitch-btn-upload">
+                      <span className="material-symbols-outlined">photo_camera</span>
+                      <span>Rasm tanlash</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={onRemove}
+                      disabled={!preview || pending}
+                      className="stitch-btn-delete"
+                    >
+                      <span className="material-symbols-outlined">delete</span>
+                      <span>Olib tashlash</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {removeAvatar && <input type="hidden" name="avatarAction" value="remove" />}
+              {removeAvatar && <input type="hidden" name="avatarAction" value="remove" />}
 
-            {/* Form Input 1: Display Name */}
-            <div className="stitch-form-field">
-              <label htmlFor="modal-display-name" className="stitch-form-label">
-                <span>Display Name / Ko‘rinadigan Ism</span>
-                {displayNameVal.trim().length > 0 && (
-                  <span className="stitch-label-valid">
-                    <span className="material-symbols-outlined">check_circle</span> To‘g‘ri kiritildi
+              {/* Display Name */}
+              <div className="stitch-form-field">
+                <label htmlFor="modal-display-name" className="stitch-form-label">
+                  <span>Display Name / Ko‘rinadigan Ism</span>
+                </label>
+                <div className="stitch-input-wrap">
+                  <input
+                    id="modal-display-name"
+                    name="display_name"
+                    type="text"
+                    maxLength={80}
+                    value={displayNameVal}
+                    onChange={(e) => setDisplayNameVal(e.target.value)}
+                    placeholder="Ismingiz yoki taxallusingiz"
+                    className="stitch-text-input"
+                  />
+                  <span className="stitch-input-icon material-symbols-outlined">badge</span>
+                </div>
+              </div>
+
+              {/* Email Address (Read-only) */}
+              <div className="stitch-form-field">
+                <label className="stitch-form-label">
+                  <span>Email manzili</span>
+                  <span className="stitch-badge-verified">
+                    <span className="material-symbols-outlined">mark_email_read</span> Tasdiqlangan
                   </span>
-                )}
-              </label>
-              <div className="stitch-input-wrap">
-                <input
-                  id="modal-display-name"
-                  name="display_name"
-                  type="text"
-                  maxLength={80}
-                  value={displayNameVal}
-                  onChange={(e) => setDisplayNameVal(e.target.value)}
-                  placeholder="Ismingiz yoki taxallusingiz"
-                  className="stitch-text-input"
-                />
-                <span className="stitch-input-icon material-symbols-outlined">badge</span>
+                </label>
+                <div className="stitch-input-wrap stitch-input-readonly">
+                  <input
+                    type="email"
+                    readOnly
+                    value={email || ''}
+                    className="stitch-text-input"
+                  />
+                  <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">lock</span>
+                </div>
               </div>
-              <p className="stitch-input-hint">
-                Fikrlaringiz va profilingizda aynan shu ism aks etadi.
-              </p>
+
+              {/* Bio */}
+              <div className="stitch-form-field">
+                <label htmlFor="modal-bio" className="stitch-form-label">
+                  <span>Bio / O‘zingiz haqingizda</span>
+                  <span className="stitch-counter">{bioText.length} / 500 belgi</span>
+                </label>
+                <textarea
+                  id="modal-bio"
+                  name="bio"
+                  rows={3}
+                  maxLength={500}
+                  value={bioText}
+                  onChange={(e) => setBioText(e.target.value)}
+                  placeholder="Sevimli anime janrlaringiz yoki o‘zingiz haqingizda qisqacha ma’lumot..."
+                  className="stitch-textarea"
+                />
+              </div>
+
+              {/* Alerts */}
+              {clientError && (
+                <div className="stitch-alert stitch-alert-error" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{clientError}</span>
+                </div>
+              )}
+              {state?.error && (
+                <div className="stitch-alert stitch-alert-error" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{state.error}</span>
+                </div>
+              )}
+              {(state?.message || saveSuccess) && (
+                <div className="stitch-alert stitch-alert-success" role="status">
+                  <span className="material-symbols-outlined">check_circle</span>
+                  <span>{state?.message || 'Profilingiz muvaffaqiyatli saqlandi!'}</span>
+                </div>
+              )}
             </div>
 
-            {/* Form Input 2: Username (Read-only) */}
-            <div className="stitch-form-field">
-              <label className="stitch-form-label">
-                <span>Username / Foydalanuvchi nomi</span>
-                <span className="stitch-label-valid">
-                  <span className="material-symbols-outlined">verified</span> Tizim identifikatori
+            {/* Modal Footer */}
+            <div className="stitch-modal-footer">
+              <span className="stitch-footer-security">
+                <span className="material-symbols-outlined">lock</span>
+                <span>Ma’lumotlar xavfsiz shifrlangan</span>
+              </span>
+
+              <div className="stitch-footer-actions">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={pending}
+                  className="stitch-btn-cancel"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="stitch-btn-save"
+                >
+                  {pending ? 'Saqlanmoqda…' : saveSuccess ? 'Saqlandi!' : 'O‘zgarishlarni saqlash'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB 2: Credentials (Username & Password) Form */}
+        {activeModalTab === 'security' && (
+          <form ref={credFormRef} action={credAction} className="stitch-modal-form">
+            <div className="stitch-modal-body">
+              <div style={{ padding: '12px 16px', background: 'rgba(0, 206, 201, 0.08)', borderRadius: 10, border: '1px solid rgba(0, 206, 201, 0.2)', marginBottom: 16 }}>
+                <span style={{ fontSize: 13, color: '#00CEC9', fontWeight: 600 }}>
+                  🛡️ Ushbu bo‘lim orqali tizimga kirish login (username) va parolingizni xavfsiz o‘zgartirishingiz mumkin.
                 </span>
-              </label>
-              <div className="stitch-input-wrap stitch-input-readonly">
-                <span className="stitch-prefix">@</span>
-                <input
-                  type="text"
-                  readOnly
-                  value={username || 'user'}
-                  className="stitch-text-input stitch-mono pl-8"
-                />
-                <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">check_circle</span>
               </div>
-              <p className="stitch-input-hint">
-                Sizning unikal profil havolangiz: @{username || 'user'}
-              </p>
+
+              {/* Username Input */}
+              <div className="stitch-form-field">
+                <label className="stitch-form-label">
+                  <span>Login (Username)</span>
+                  <span className="stitch-label-valid">3–20 ta harf, raqam yoki _</span>
+                </label>
+                <div className="stitch-input-wrap">
+                  <span className="stitch-prefix">@</span>
+                  <input
+                    name="username"
+                    type="text"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    placeholder="yangi_username"
+                    maxLength={20}
+                    className="stitch-text-input stitch-mono pl-8"
+                  />
+                  <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">person</span>
+                </div>
+                <p className="stitch-input-hint">
+                  Saytga kirishda va profilingizda ushbu login ishlatiladi.
+                </p>
+              </div>
+
+              {/* New Password */}
+              <div className="stitch-form-field">
+                <label className="stitch-form-label">
+                  <span>Yangi Parol</span>
+                  <span className="stitch-label-valid">Kamida 6 ta belgi</span>
+                </label>
+                <div className="stitch-input-wrap">
+                  <input
+                    name="new_password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Yangi parolni kiriting"
+                    autoComplete="new-password"
+                    className="stitch-text-input"
+                  />
+                  <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">key</span>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="stitch-form-field">
+                <label className="stitch-form-label">
+                  <span>Yangi Parolni Tasdiqlang</span>
+                </label>
+                <div className="stitch-input-wrap">
+                  <input
+                    name="confirm_password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Yangi parolni qayta kiriting"
+                    autoComplete="new-password"
+                    className="stitch-text-input"
+                  />
+                  <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">lock_reset</span>
+                </div>
+              </div>
+
+              {/* Alerts for credentials */}
+              {credClientError && (
+                <div className="stitch-alert stitch-alert-error" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{credClientError}</span>
+                </div>
+              )}
+              {credState?.error && (
+                <div className="stitch-alert stitch-alert-error" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{credState.error}</span>
+                </div>
+              )}
+              {(credState?.message || credSuccess) && (
+                <div className="stitch-alert stitch-alert-success" role="status">
+                  <span className="material-symbols-outlined">check_circle</span>
+                  <span>{credState?.message || 'Login va parolingiz muvaffaqiyatli saqlandi!'}</span>
+                </div>
+              )}
             </div>
 
-            {/* Form Input 3: Email Address (Read-only) */}
-            <div className="stitch-form-field">
-              <label className="stitch-form-label">
-                <span>Email manzili</span>
-                <span className="stitch-badge-verified">
-                  <span className="material-symbols-outlined">mark_email_read</span> Tasdiqlangan
-                </span>
-              </label>
-              <div className="stitch-input-wrap stitch-input-readonly">
-                <input
-                  type="email"
-                  readOnly
-                  value={email || ''}
-                  className="stitch-text-input"
-                />
-                <span className="stitch-input-icon material-symbols-outlined stitch-text-cyan">lock</span>
+            {/* Modal Footer */}
+            <div className="stitch-modal-footer">
+              <span className="stitch-footer-security">
+                <span className="material-symbols-outlined">verified_user</span>
+                <span>SSL 256-bit shifrlangan</span>
+              </span>
+
+              <div className="stitch-footer-actions">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={credPending}
+                  className="stitch-btn-cancel"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={credPending || (!newPassword && newUsername === username)}
+                  className="stitch-btn-save"
+                >
+                  {credPending ? 'Saqlanmoqda…' : credSuccess ? 'Saqlandi!' : '🔐 Yangi Parolni Saqlash'}
+                </button>
               </div>
-              <p className="stitch-input-hint">
-                Xavfsizlik va kirish kodi ushbu pochtaga biriktirilgan.
-              </p>
             </div>
-
-            {/* Form Input 4: Bio / O'zingiz haqingizda */}
-            <div className="stitch-form-field">
-              <label htmlFor="modal-bio" className="stitch-form-label">
-                <span>Bio / O‘zingiz haqingizda</span>
-                <span className="stitch-counter">{bioText.length} / 500 belgi</span>
-              </label>
-              <textarea
-                id="modal-bio"
-                name="bio"
-                rows={3}
-                maxLength={500}
-                value={bioText}
-                onChange={(e) => setBioText(e.target.value)}
-                placeholder="Sevimli anime janrlaringiz yoki o‘zingiz haqingizda qisqacha ma’lumot..."
-                className="stitch-textarea"
-              />
-              <p className="stitch-input-hint">
-                Profilingizga tashrif buyurgan boshqa muxlislar ushbu yozuvni ko‘rishadi.
-              </p>
-            </div>
-
-            {/* Alerts */}
-            {clientError && (
-              <div className="stitch-alert stitch-alert-error" role="alert">
-                <span className="material-symbols-outlined">error</span>
-                <span>{clientError}</span>
-              </div>
-            )}
-            {state?.error && (
-              <div className="stitch-alert stitch-alert-error" role="alert">
-                <span className="material-symbols-outlined">error</span>
-                <span>{state.error}</span>
-              </div>
-            )}
-            {(state?.message || saveSuccess) && (
-              <div className="stitch-alert stitch-alert-success" role="status">
-                <span className="material-symbols-outlined">check_circle</span>
-                <span>{state?.message || 'Profilingiz muvaffaqiyatli saqlandi!'}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Modal Footer */}
-          <div className="stitch-modal-footer">
-            <span className="stitch-footer-security">
-              <span className="material-symbols-outlined">lock</span>
-              <span>Barcha ma’lumotlar shifrlangan</span>
-            </span>
-
-            <div className="stitch-footer-actions">
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={pending}
-                className="stitch-btn-cancel"
-              >
-                Bekor qilish
-              </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="stitch-btn-save"
-                id="save-profile-btn"
-              >
-                {pending ? (
-                  <>
-                    <svg className="stitch-spinner" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    <span>Saqlanmoqda…</span>
-                  </>
-                ) : saveSuccess ? (
-                  <>
-                    <span className="material-symbols-outlined">done</span>
-                    <span>Saqlandi!</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined">save</span>
-                    <span>O‘zgarishlarni saqlash</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );
