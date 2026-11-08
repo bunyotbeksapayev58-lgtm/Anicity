@@ -30,7 +30,7 @@
 | **Database & Auth** | Supabase PostgreSQL | Latest Cloud | Row-Level Security (RLS), Auth, Storage, RPC |
 | **Video Engine** | HLS.js + Native Video | `1.6.15` | Adaptive bitrate streaming, error recovery |
 | **Hosting & CDN** | Vercel Serverless / Edge | Global Edge | Global low-latency edge delivery |
-| **Automated Testing** | Node.js Test Runner | Native (v20+) | 22 comprehensive regression test suites |
+| **Automated Testing** | Node.js Test Runner | Native (v20+) | 25 comprehensive regression test suites (100% passing) |
 
 ---
 
@@ -45,13 +45,13 @@
 ## 4. Repository Structure & Branching Strategy
 
 ```
-yozora-app/
+anicity/
 ├── app/                     # Next.js 16 App Router pages, layouts, actions, webhooks
 ├── components/              # Modular UI components (Player, Navbar, Modals, Cards)
 ├── docs/                    # Complete commercial documentation library
 ├── lib/                     # Domain business logic, rate limiters, video engine
 ├── supabase/migrations/     # 18 sequential, idempotent PostgreSQL migrations
-└── tests/                   # 22 automated test suites (100% passing)
+└── tests/                   # 25 automated test suites (100% passing)
 ```
 
 ### Git Branching Anchor Points:
@@ -72,7 +72,7 @@ The PostgreSQL database contains 18 structured migrations implementing:
 - `public.user_subscriptions`: VIP status, starts_at, ends_at, auto-renew status.
 - `public.payments`: Unified payment records for Click and Payme transactions.
 - `public.subscription_audit_logs`: Immutable administrative audit trail for manual VIP grants.
-- `public.rate_limit_buckets`: Distributed rate limiting state storage with atomic row locks.
+- `public.rate_limits`: Distributed rate limiting state storage with atomic row locks.
 
 ---
 

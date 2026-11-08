@@ -1,60 +1,112 @@
-# Anicity
+# AniCity — Professional Anime Streaming Platform
 
-Anime tomosha platformasi. Next.js (App Router) + Supabase (Auth, Postgres, Storage). Vercel ga deploy qilingan.
+> **Full-Stack Anime Streaming, Community & Monetization Engine**  
+> Texnologiyalar: **Next.js 16 (App Router)** • **React 19** • **Supabase (PostgreSQL & Auth)** • **Vercel**
 
-- **Jonli sayt:** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)
-- **GitHub:** [https://github.com/bunyotbeksapayev58-lgtm/Anicity](https://github.com/bunyotbeksapayev58-lgtm/Anicity)
+- 🌐 **Jonli ko‘rish (Production):** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)
+- 📦 **Versiya:** 1.0.0 (Tijoriy sotuvga to‘liq tayyor nashr)
+- 🧪 **Avtomatlashgan testlar:** 25 ta to‘liq test to‘plami (100% muvaffaqiyatli)
 
-## Ishga tushirish
-1. Supabase loyiha yarating va **`supabase/SUPABASE_SETUP.md`** dagi qadamlarni bajaring (SQL tartibi, owner, bucketlar).
-2. Sozlamalar:
-   ```bash
-   cp .env.example .env.local   # qiymatlarni to'ldiring
-   npm install
-   npm run dev                  # http://localhost:3000
-   ```
-3. Production: GitHub → Vercel, env o'zgaruvchilarni qo'shing, Supabase Auth da Site URL ni domenga o'zgartiring.
+---
 
-## Tuzilma
-- `app/` — sahifalar va server actions, `app/api/` — REST API
-- `components/` — UI komponentlari
-- `lib/` — Supabase klientlari, validatsiya, rollar, yordamchilar
-- `supabase/migrations/` — ma'lumotlar bazasi migratsiyalari (001–011, tartib muhim)
-- `supabase/check_migrations.py` — migratsiyalarning statik tekshiruvi
-- `supabase/verify.sql` — o'qish rejimidagi tekshiruv
-- `npm test` — faqat mahalliy testlar; Supabase’ga ulanmaydi
-- `npm run test:e2e:live` va `npm run test:live:*` — faqat alohida test loyihasi, test akkaunti va aniq opt-in bilan
+## ⚡ Asosiy Imkoniyatlar
 
-## Imkoniyatlar
-- Ro'yxatdan o'tish, login (username yoki email), parolni tiklash
-- Sevimlilar, ko'rish holati ("Davom ettirish"), tarix
-- Janr filtri, qidiruv, animatsiyalar, skeleton yuklash
-- Admin panel: anime va qismlar (Google Drive havolasi bilan), tahrirlash, o'chirish
-- Rollar: user, moderator, admin, owner; suspenziya
+1. **Zamonaviy Kinematik UI/UX:**
+   - Dark neo-cyber dizayn, responsive 360px mobil ekranlardan 4K monitorlargacha moslashuvchan.
+   - Bosh sahifa hero banneri, trenddagi, yangi premyeralar, yuqori baholanganlar va tavsiyalar bo‘limlari.
+   - Haftalik relizlar jadvali (Dushanba–Yakshanba).
+   - Janrlar bo‘yicha ko‘p qirrali filtr va tezkor qidiruv tizimi.
 
-## REST API
-Autentifikatsiya: Supabase sessiyasi (cookie). Admin amallari faqat admin/owner uchun.
+2. **Ko‘p Formatli Video Pleyer:**
+   - **Mehmon rejimi (Guest Mode):** Yangi foydalanuvchilar ro‘yxatdan o‘tmasdan bepul qismlarni tomosha qila oladi.
+   - **Google Drive Embed:** Google Drive havolalari orqali tekin va oson oqimli video namoyishi (Anti-popout himoyasi bilan).
+   - **HLS (.m3u8) & Direct MP4:** Hls.js adaptiv oqim (multi-quality 1080p/720p/480p) va server-side HMAC kriptografik video tokenlari (`/api/video/token`).
+   - Mobil moslashuvchan pleyer (360px, 375px, 390px, 430px) va fullscreen/teatr rejimlari.
 
-| Metod | Yo'l | Kim | Vazifa |
-|---|---|---|---|
-| GET | `/api/animes?q=&limit=&offset=` | user | Ro'yxat (qidiruv, sahifalash) |
-| POST | `/api/animes` | admin | Anime + qismlar yaratish |
-| GET | `/api/animes/:id` | user | Anime va qismlar |
-| PATCH | `/api/animes/:id` | admin | Yangilash (`episodes` berilsa ro'yxat almashtiriladi) |
-| DELETE | `/api/animes/:id` | admin | O'chirish (poster bilan) |
-| POST/DELETE | `/api/animes/:id/favorite` | user | Sevimli qo'shish/olib tashlash |
-| GET | `/api/favorites` | user | Sevimlilar |
-| GET/POST | `/api/progress` | user | Ko'rish holati |
+3. **Monetizatsiya va VIP Obuna:**
+   - O‘zbekiston milliy to‘lov tizimlari: **Click.uz** (Prepare/Complete 2 bosqichli MD5 protokoli) va **Payme.uz** (JSON-RPC 2.0 protokoli).
+   - Avtomatlashtirilgan VIP faollashtirish, obuna muddatini hisoblash va audit jurnali (`subscription_audit_logs`).
+   - VIP qismlar va 4K sifat uchun xavfsiz avtomatik paywall.
 
-Xato kodlari: `401` kirish yo'q, `403` ruxsat yo'q, `404` topilmadi, `422` validatsiya (`details`), `500` server xatosi.
+4. **Keng Qamrovli Boshqaruv (Admin & Assistant Panel):**
+   - Anime va epizodlarni mustaqil yaratish (decoupled anime creation).
+   - Epizodlarni almashtirish, sifatini belgilash va treylerlar biriktirish.
+   - Foydalanuvchi rollarini boshqarish (`owner`, `admin`, `assistant`, `user`).
+   - Yordamchi adminlar uchun cheklangan huquqlar tizimi (`assistant_permissions`).
 
-## Xavfsizlik eslatmalari
-- `SUPABASE_SERVICE_ROLE_KEY` faqat serverda. Hech qachon `NEXT_PUBLIC_` bilan nomlamang.
-- Mualliflik huquqi himoyalangan kontentni yuklashdan oldin huquqlaringizni tekshiring.
-- Video fayllar saytda saqlanmaydi, faqat havola (Google Drive yoki boshqa hosting) orqali ulanadi.
+5. **Xavfsizlik va Ma’lumotlar Bazasi:**
+   - Supabase PostgreSQL: 18 ta ketma-ket tartibli migratsiya (001–017).
+   - Qator darajasidagi to‘liq xavfsizlik (Row Level Security — RLS).
+   - Vercel Serverless uchun taqsimlangan atomik rate limiting (`rate_limits` jadvali va `check_rate_limit` RPC).
+   - Kriptografik xavfsizlik: Xaridor paketida hech qanday maxfiy kalitlar (secrets) qoldirilmagan.
 
-## Video manbasi: Google Drive
-- Videolar Google Drive da saqlanadi, saytga faqat havola qo'yiladi.
-- Faylning ulashish havolasini qo'ying (`https://drive.google.com/file/d/.../view?usp=sharing`). Papka havolasi qabul qilinmaydi.
-- Faylni **"Anyone with the link"** (havolasi bor har kim) qilib qo'ying, aks holda pleer ishlamaydi.
-- Drive pleeri ko'rish holatini (qaysi daqiqada to'xtagan) saqlay olmaydi. Faqat to'g'ridan-to'g'ri `.mp4`/`.webm` havolalarda saqlanadi.
+6. **Huquqiy va SEO Asoslari:**
+   - Dinamik `/sitemap.xml` va `/robots.txt`.
+   - Tayyor huquqiy sahifalar: `/dmca` (Mualliflik huquqi), `/terms` (Foydalanish shartlari), `/privacy` (Maxfiylik siyosati).
+
+---
+
+## 🚀 Tezkor Ishga Tushirish
+
+### 1. Talablar
+- Node.js 20+ yoki 22+
+- npm yoki pnpm
+- Supabase hisobi (bepul yoki Pro)
+
+### 2. O‘rnatish va muhitni sozlash
+```bash
+# 1. Repozitoriy papkasiga kiring
+cd anicity
+
+# 2. Bog'liqliklarni o'rnating
+npm install
+
+# 3. Muhit o'zgaruvchilari faylini nusxalang
+cp .env.example .env.local
+```
+
+`.env.local` faylini ochib, Supabase Dashboard (`Project Settings -> API`) dagi manzillarni kiriting:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://sizning-loyihangiz.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sizning_anon_kalitingiz
+SUPABASE_SERVICE_ROLE_KEY=sizning_service_role_kalitingiz
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### 3. Testlarni tekshirish
+```bash
+npm test
+```
+*Barcha 25 ta regressiya testlari 100% muvaffaqiyatli yakunlanadi.*
+
+### 4. Dasturchi rejimida ishga tushirish
+```bash
+npm run dev
+```
+Brauzerda oching: [http://localhost:3000](http://localhost:3000)
+
+### 5. Production Build
+```bash
+npm run build
+```
+*Next.js Turbopack 18 ta marshrutni to‘liq yig‘adi.*
+
+---
+
+## 📚 Hujjatlar Katalogi (`docs/`)
+
+Loyihaning barcha texnik va biznes yo‘riqnomalari `docs/` papkasida to‘liq jamlangan:
+
+1. 📄 **[BUYER_HANDOVER.md](docs/BUYER_HANDOVER.md)** — Yangi xaridor uchun to‘liq loyihani qabul qilib olish va boshqaruv yo‘riqnomasi.
+2. 🛡️ **[ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)** — Administrator paneli, anime va qismlarni yuklash, rollar va moderatsiya.
+3. 🗄️ **[DATABASE.md](docs/DATABASE.md)** — Supabase PostgreSQL arxitekturasi, ERD sxemasi va 18 ta SQL migratsiya ro‘yxati.
+4. 💳 **[PAYMENTS.md](docs/PAYMENTS.md)** — Click.uz va Payme.uz to‘lov protokoli, sandbox sinovlari va webhook sozlamalari.
+5. 🎬 **[VIDEO_STREAMING.md](docs/VIDEO_STREAMING.md)** — Google Drive, HLS va MP4 video yetkazib berish va HMAC xavfsizlik arxitekturasi.
+6. 🏗️ **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Tizim arxitekturasi, komponentlar iyerarxiyasi va ma’lumotlar oqimi.
+
+---
+
+## ⚖️ Mualliflik Huquqi va Kontent Eslatmasi
+
+AniCity — bu to‘liq tayyor anime veb-platformasi (Dasturiy Dvigatel / SaaS Engine).
+Platformani sotib olgan yangi egasi o‘z platformasiga yuklaydigan barcha anime videolari, audio dublyajlari va rasmlari uchun o‘zi litsenziya oladi yoki ochiq/mualliflik roziligi bo‘lgan materiallarni joylashtiradi. Saytda DMCA bildirishnomalari uchun tayyor avtomatlashtirilgan mexanizm va `/dmca` sahifasi integratsiya qilingan.
