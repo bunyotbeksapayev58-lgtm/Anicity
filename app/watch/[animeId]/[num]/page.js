@@ -14,6 +14,7 @@ export async function generateMetadata({ params }) {
   const supabase = await createClient();
   const query = applyAnimeIdentifierFilter(supabase.from('animes').select('title'), animeId);
   const { data: anime } = await query.maybeSingle();
+  if (!anime) notFound();
   return {
     title: anime ? `${anime.title} — ${num}-qism — Anicity` : 'Tomosha — Anicity',
     description: anime ? `${anime.title} serialining ${num}-qismini yuqori sifatda tomosha qiling.` : 'Anicity anime streaming',

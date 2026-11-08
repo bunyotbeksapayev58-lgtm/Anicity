@@ -176,3 +176,30 @@ test('7. Live Supabase Verification: Code Geass resolves via UUID, slug, and wat
   assert.ok(watchData, 'Watch data must be loaded');
   assert.ok(Array.isArray(watchData.episodes), 'Episodes must be loaded');
 });
+
+
+test('8. True HTTP 404 Status Enforcers: Root loading boundary avoided & generateMetadata invokes notFound()', async () => {
+  const animeCode = await fs.readFile(path.resolve('app/anime/[id]/page.js'), 'utf8');
+  const watchCode = await fs.readFile(path.resolve('app/watch/[animeId]/[num]/page.js'), 'utf8');
+
+  // Verify generateMetadata in anime page calls notFound()
+  assert.ok(
+    /generateMetadata[\s\S]*?if\s*\(!anime\)\s*notFound\(\)/.test(animeCode),
+    'generateMetadata in app/anime/[id]/page.js must call notFound() when anime is missing'
+  );
+
+  // Verify generateMetadata in watch page calls notFound()
+  assert.ok(
+    /generateMetadata[\s\S]*?if\s*\(!anime\)\s*notFound\(\)/.test(watchCode),
+    'generateMetadata in app/watch/[animeId]/[num]/page.js must call notFound() when anime is missing'
+  );
+
+  // Verify root app/loading.js does not exist (relocated to segment loading to prevent early HTTP 200 streaming)
+  let rootLoadingExists = true;
+  try {
+    await fs.access(path.resolve('app/loading.js'));
+  } catch {
+    rootLoadingExists = false;
+  }
+  assert.equal(rootLoadingExists, false, 'Root app/loading.js must not exist to ensure true HTTP 404 headers');
+});

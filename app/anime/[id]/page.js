@@ -16,7 +16,7 @@ export async function generateMetadata({ params }) {
     id
   );
   const { data: anime } = await query.maybeSingle();
-  if (!anime) return { title: 'Anime topilmadi — Anicity' };
+  if (!anime) notFound();
   return {
     title: `${anime.title} — Anicity`,
     description: anime.description?.slice(0, 160) || 'Anicity platformasida tomosha qiling',
