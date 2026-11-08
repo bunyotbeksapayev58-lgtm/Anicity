@@ -48,7 +48,15 @@ export async function login(prevState, formData) {
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: LOGIN_ERR };
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+      return {
+        error: 'Emailingiz hali tasdiqlanmagan. Iltimos, emailingizga yuborilgan tasdiqlash havolasini bosing yoki Supabase boshqaruv panelida "Confirm email" bandini o‘chiring.',
+      };
+    }
+    return { error: LOGIN_ERR };
+  }
   redirect(safeNext);
 }
 
@@ -91,7 +99,9 @@ export async function register(prevState, formData) {
 
   // Email tasdiqlash yoqilgan bo'lsa sessiya bo'lmaydi
   if (!data.session) {
-    return { message: 'Emailingizga tasdiqlash xati yuborildi. Tasdiqlab, keyin kiring.' };
+    return {
+      message: 'Emailingizga tasdiqlash xati yuborildi. Iltimos, emailingizdagi tasdiqlash havolasini bosing. (Eslatma: Agar localhost xatosi chiqsa, Supabase panelida "Confirm email"ni o‘chirib qo‘ying).',
+    };
   }
   redirect(safeNext);
 }
