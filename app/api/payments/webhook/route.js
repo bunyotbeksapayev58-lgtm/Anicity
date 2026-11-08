@@ -53,6 +53,8 @@ export async function POST(request) {
       );
     }
 
+    let admin;
+    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
     const paymeResult = await handlePaymeRpc(body, admin);
     return NextResponse.json(paymeResult);
   }
@@ -74,10 +76,14 @@ export async function POST(request) {
 
     const action = Number(body?.action);
     if (action === 0) {
-      const prepRes = await handleClickPrepare(body, admin);
+      let admin;
+    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
+    const prepRes = await handleClickPrepare(body, admin);
       return NextResponse.json(prepRes);
     } else if (action === 1) {
-      const compRes = await handleClickComplete(body, admin);
+      let admin;
+    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
+    const compRes = await handleClickComplete(body, admin);
       return NextResponse.json(compRes);
     } else {
       return NextResponse.json({
