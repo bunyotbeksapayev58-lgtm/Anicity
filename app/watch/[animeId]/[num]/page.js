@@ -5,13 +5,15 @@ import Player from '@/components/Player';
 import { toggleEpisodeCompleted } from '@/app/actions/progress';
 import { isDriveUrl } from '@/lib/drive';
 import { validatePlaybackAccess } from '@/lib/video/secure-delivery';
+import { applyAnimeIdentifierFilter } from '@/lib/anime-lookup';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }) {
   const { animeId, num } = await params;
   const supabase = await createClient();
-  const { data: anime } = await supabase.from('animes').select('title').eq('id', animeId).single();
+  const query = applyAnimeIdentifierFilter(supabase.from('animes').select('title'), animeId);
+  const { data: anime } = await query.maybeSingle();
   return {
     title: anime ? `${anime.title} — ${num}-qism — Anicity` : 'Tomosha — Anicity',
     description: anime ? `${anime.title} serialining ${num}-qismini yuqori sifatda tomosha qiling.` : 'Anicity anime streaming',
@@ -27,12 +29,14 @@ export default async function WatchPage({ params }) {
     redirect(`/login?next=/watch/${animeId}/${num}`);
   }
 
-  // Fetch full anime details and episodes
-  const { data: anime } = await supabase
-    .from('animes')
-    .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, requires_vip, is_published)')
-    .eq('id', animeId)
-    .single();
+  // Fetch full anime details and episodes (resolves UUID or slug safely without non-existent DB column crash)
+  const query = applyAnimeIdentifierFilter(
+    supabase
+      .from('animes')
+      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published)'),
+    animeId
+  );
+  const { data: anime } = await query.maybeSingle();
 
   if (!anime) notFound();
 
@@ -58,13 +62,20 @@ export default async function WatchPage({ params }) {
   const access = validatePlaybackAccess({
     user,
     profile,
-    episode: { ...ep, animes: anime },
+    episode: {
+      ...ep,
+      requires_vip: ep.requires_vip ?? false,
+      animes: {
+        ...anime,
+        is_vip_only: anime.is_vip_only ?? false,
+      },
+    },
     subscriptions: subsRaw || [],
   });
 
   if (!access.allowed) {
     if (access.code === 'VIP_REQUIRED') {
-      redirect(`/premium?vip_required=true&next=/watch/${animeId}/${num}`);
+      redirect(`/premium?vip_required=true&next=/watch/${anime.id}/${num}`);
     }
     if (access.code === 'USER_SUSPENDED') {
       redirect('/?suspended=true');
@@ -76,7 +87,7 @@ export default async function WatchPage({ params }) {
   const { data: progress } = await supabase
     .from('watch_progress')
     .select('episode_id, position_sec, completed')
-    .eq('anime_id', animeId);
+    .eq('anime_id', anime.id);
 
   const progMap = new Map((progress || []).map((p) => [p.episode_id, p]));
   const saved = progMap.get(ep.id);
@@ -91,7 +102,7 @@ export default async function WatchPage({ params }) {
   const { data: relatedRaw } = await supabase
     .from('animes')
     .select('id, title, poster_url, year, rating_avg, status')
-    .neq('id', animeId)
+    .neq('id', anime.id)
     .eq('is_published', true)
     .limit(4);
   const relatedAnimes = relatedRaw || [];
@@ -118,7 +129,7 @@ export default async function WatchPage({ params }) {
       />
       {/* 1. Header Navigation Bar */}
       <div className="watch-nav-header">
-        <Link href={`/anime/${animeId}`} className="watch-back-link">
+        <Link href={`/anime/${anime.id}`} className="watch-back-link">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="15 18 9 12 15 6" />
           </svg>
@@ -138,10 +149,10 @@ export default async function WatchPage({ params }) {
             <Player
               src={ep.video_url}
               userId={user?.id}
-              animeId={animeId}
+              animeId={anime.id}
               episodeId={ep.id}
               startAt={!isDrive && saved && !saved.completed ? saved.position_sec : 0}
-              nextHref={next ? `/watch/${animeId}/${next.number}` : null}
+              nextHref={next ? `/watch/${anime.id}/${next.number}` : null}
               animeTitle={anime.title}
               episodeTitle={ep.title || `${ep.number}-qism`}
             />
@@ -167,7 +178,7 @@ export default async function WatchPage({ params }) {
             <div className="watch-actions-bar">
               {user && (
                 <form action={toggleEpisodeCompleted} style={{ display: 'inline' }}>
-                  <input type="hidden" name="animeId" value={animeId} />
+                  <input type="hidden" name="animeId" value={anime.id} />
                   <input type="hidden" name="episodeId" value={ep.id} />
                   <input type="hidden" name="completed" value={String(isCompleted)} />
                   <button
@@ -183,7 +194,7 @@ export default async function WatchPage({ params }) {
               <div className="watch-nav-btns-group">
                 {prev ? (
                   <Link
-                    href={`/watch/${animeId}/${prev.number}`}
+                    href={`/watch/${anime.id}/${prev.number}`}
                     className="btn ghost sm watch-nav-btn"
                     title={`Oldingi qism: ${prev.number}-qism`}
                   >
@@ -197,7 +208,7 @@ export default async function WatchPage({ params }) {
 
                 {next ? (
                   <Link
-                    href={`/watch/${animeId}/${next.number}`}
+                    href={`/watch/${anime.id}/${next.number}`}
                     className="btn primary sm watch-nav-btn"
                     title={`Keyingi qism: ${next.number}-qism`}
                   >
@@ -232,7 +243,7 @@ export default async function WatchPage({ params }) {
                 return (
                   <Link
                     key={e.id}
-                    href={`/watch/${animeId}/${e.number}`}
+                    href={`/watch/${anime.id}/${e.number}`}
                     className={`mobile-ep-chip ${isCurrent ? 'active' : ''} ${p?.completed ? 'completed' : ''}`}
                   >
                     <span className="ep-chip-num">{e.number}</span>
@@ -322,7 +333,7 @@ export default async function WatchPage({ params }) {
                 return (
                   <Link
                     key={e.id}
-                    href={`/watch/${animeId}/${e.number}`}
+                    href={`/watch/${anime.id}/${e.number}`}
                     className={`desktop-ep-item ${isCurrent ? 'active' : ''}`}
                   >
                     <div className="ep-item-thumb-box">

@@ -2,18 +2,18 @@ import { json, fail, isUuid, readJson, requireAdmin, requireAdminPermission, get
 import { validateAnime, validateEpisodes } from '@/lib/validate';
 import { removePosterByUrl } from '@/lib/storage';
 import { logAssistantContentFailure } from '@/lib/assistant-audit';
+import { applyAnimeIdentifierFilter } from '@/lib/anime-lookup';
 
 // GET /api/animes/:id
 export async function GET(request, { params }) {
   const { id } = await params;
-  if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
   const { supabase } = await getPublicContext();
 
-  const { data, error } = await supabase
-    .from('animes')
-    .select('*, episodes(id, number, title, video_url)')
-    .eq('id', id)
-    .single();
+  const query = applyAnimeIdentifierFilter(
+    supabase.from('animes').select('*, episodes(id, number, title, video_url)'),
+    id
+  );
+  const { data, error } = await query.maybeSingle();
   if (error || !data) return fail('Topilmadi', 404);
   if (Array.isArray(data.episodes)) {
     data.episodes.sort((x, y) => x.number - y.number);

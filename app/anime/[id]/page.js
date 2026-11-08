@@ -4,13 +4,18 @@ import { createClient } from '@/lib/supabase/server';
 import { toggleFavorite } from '@/app/actions/favorites';
 import AnimeRow from '@/components/AnimeRow';
 import TrailersClips from '@/components/TrailersClips';
+import { applyAnimeIdentifierFilter } from '@/lib/anime-lookup';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: anime } = await supabase.from('animes').select('title, description, poster_url').eq('id', id).single();
+  const query = applyAnimeIdentifierFilter(
+    supabase.from('animes').select('title, description, poster_url'),
+    id
+  );
+  const { data: anime } = await query.maybeSingle();
   if (!anime) return { title: 'Anime topilmadi — Anicity' };
   return {
     title: `${anime.title} — Anicity`,
@@ -28,12 +33,12 @@ export default async function AnimeDetailsPage({ params }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch Anime details
-  const { data: anime } = await supabase
-    .from('animes')
-    .select('*, episodes(id, number, title, thumbnail_url, is_published)')
-    .eq('id', id)
-    .single();
+  // Fetch Anime details (resolves by canonical UUID or slug/title without 22P02 crashes)
+  const query = applyAnimeIdentifierFilter(
+    supabase.from('animes').select('*, episodes(id, number, title, thumbnail_url, is_published)'),
+    id
+  );
+  const { data: anime } = await query.maybeSingle();
 
   if (!anime) notFound();
 
@@ -41,13 +46,13 @@ export default async function AnimeDetailsPage({ params }) {
 
   // Check Favorites
   const fav = user
-    ? (await supabase.from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', id).maybeSingle()).data
+    ? (await supabase.from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', anime.id).maybeSingle()).data
     : null;
   const isFav = !!fav;
 
   // Check Watch Progress
   const { data: progress } = user
-    ? await supabase.from('watch_progress').select('episode_id, completed, position_sec, duration_sec').eq('anime_id', id)
+    ? await supabase.from('watch_progress').select('episode_id, completed, position_sec, duration_sec').eq('anime_id', anime.id)
     : { data: [] };
   const progMap = new Map((progress || []).map((p) => [p.episode_id, p]));
 
@@ -61,20 +66,20 @@ export default async function AnimeDetailsPage({ params }) {
   const { data: trailers } = await supabase
     .from('trailers')
     .select('id, anime_id, title, description, video_url, thumbnail_url, duration_text, clip_type')
-    .eq('anime_id', id)
+    .eq('anime_id', anime.id)
     .eq('is_active', true);
 
   // Fetch Recommended / Similar Animes
   const { data: relatedAnimes } = await supabase
     .from('animes')
     .select('id, title, year, poster_url, rating_avg, status, genres, episodes(id, number, title)')
-    .neq('id', id)
+    .neq('id', anime.id)
     .limit(8);
 
   const backdropImage = anime.banner_url || anime.poster_url;
   const watchUrl = user
-    ? (targetEpisode ? `/watch/${id}/${targetEpisode.number}` : '#')
-    : (targetEpisode ? `/login?next=/watch/${id}/${targetEpisode.number}` : `/login?next=/anime/${id}`);
+    ? (targetEpisode ? `/watch/${anime.id}/${targetEpisode.number}` : '#')
+    : (targetEpisode ? `/login?next=/watch/${anime.id}/${targetEpisode.number}` : `/login?next=/anime/${anime.id}`);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -197,7 +202,7 @@ export default async function AnimeDetailsPage({ params }) {
 
               {user ? (
                 <form action={toggleFavorite}>
-                  <input type="hidden" name="animeId" value={id} />
+                  <input type="hidden" name="animeId" value={anime.id} />
                   <input type="hidden" name="isFav" value={String(isFav)} />
                   <button className={`btn-fav-pro ${isFav ? 'active' : ''}`}>
                     <span className="fav-heart">{isFav ? '❤️' : '🤍'}</span>
@@ -205,7 +210,7 @@ export default async function AnimeDetailsPage({ params }) {
                   </button>
                 </form>
               ) : (
-                <Link href={`/login?next=/anime/${id}`} className="btn-fav-pro">
+                <Link href={`/login?next=/anime/${anime.id}`} className="btn-fav-pro">
                   <span className="fav-heart">🤍</span>
                   <span>Sevimlilarga qo‘shish</span>
                 </Link>
@@ -218,7 +223,7 @@ export default async function AnimeDetailsPage({ params }) {
                 <span>
                   <strong>Diqqat:</strong> Filmni to‘liq tomosha qilish uchun hisobingizga kiring yoki bepul ro‘yxatdan o‘ting.
                 </span>
-                <Link href={`/login?next=/anime/${id}`} className="alert-login-link">
+                <Link href={`/login?next=/anime/${anime.id}`} className="alert-login-link">
                   Kirish →
                 </Link>
               </div>
@@ -239,7 +244,7 @@ export default async function AnimeDetailsPage({ params }) {
           <div className="episodes-pro-grid">
             {episodes.map((ep) => {
               const p = progMap.get(ep.id);
-              const href = user ? `/watch/${id}/${ep.number}` : `/login?next=/watch/${id}/${ep.number}`;
+              const href = user ? `/watch/${anime.id}/${ep.number}` : `/login?next=/watch/${anime.id}/${ep.number}`;
               const isFinished = p?.completed;
               const hasProgress = !isFinished && p?.duration_sec && p?.position_sec > 0;
               const pct = hasProgress ? Math.min(100, (p.position_sec / p.duration_sec) * 100) : 0;

@@ -37,10 +37,10 @@ export async function POST(request) {
     .eq('id', user.id)
     .maybeSingle();
 
-  // 2. Fetch episode and anime metadata
+  // 2. Fetch episode and anime metadata (only selects existing schema columns)
   const { data: episode, error: epErr } = await supabase
     .from('episodes')
-    .select('id, anime_id, video_url, is_published, quality, requires_vip, animes(title, is_vip_only)')
+    .select('id, anime_id, video_url, is_published, quality, animes(title)')
     .eq('id', episodeId)
     .maybeSingle();
 
@@ -58,7 +58,14 @@ export async function POST(request) {
   const access = validatePlaybackAccess({
     user,
     profile,
-    episode,
+    episode: {
+      ...episode,
+      requires_vip: episode?.requires_vip ?? false,
+      animes: {
+        ...episode?.animes,
+        is_vip_only: episode?.animes?.is_vip_only ?? false,
+      },
+    },
     subscriptions: subsRaw || [],
   });
 
