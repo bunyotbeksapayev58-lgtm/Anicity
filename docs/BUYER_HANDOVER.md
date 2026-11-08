@@ -25,10 +25,10 @@
 | Layer | Technology | Version | Purpose |
 | :--- | :--- | :--- | :--- |
 | **Frontend Framework** | Next.js (App Router) | `16.4.3` | Full-stack SSR, Server Components, Streaming |
-| **UI Library** | React | `19.2.3` | Concurrent rendering, actions, optimistic UI |
+| **UI Library** | React | `19.0.0` | Concurrent rendering, actions, optimistic UI |
 | **Compiler / Bundler** | Turbopack | Integrated | Fast build times (< 600ms compiled) |
 | **Database & Auth** | Supabase PostgreSQL | Latest Cloud | Row-Level Security (RLS), Auth, Storage, RPC |
-| **Video Engine** | HLS.js + Native Video | `1.6.15` | Adaptive bitrate streaming, error recovery |
+| **Video Engine** | HLS.js + Native Video | `1.7.4` | Adaptive bitrate streaming, error recovery |
 | **Hosting & CDN** | Vercel Serverless / Edge | Global Edge | Global low-latency edge delivery |
 | **Automated Testing** | Node.js Test Runner | Native (v20+) | 25 comprehensive regression test suites (100% passing) |
 
@@ -199,8 +199,8 @@ Implemented in `lib/video/secure-delivery.js` and `app/api/video/token/route.js`
 
 ## 19. Deployment, Hosting & Infrastructure Runbook
 
-- Refer to [`docs/DEPLOYMENT_GUIDE.md`](file:///c:/Users/user/Desktop/yozora-app/docs/DEPLOYMENT_GUIDE.md) for full deployment instructions on Vercel and Supabase.
-- Refer to [`docs/DEMO_CONTENT_CLEANUP.md`](file:///c:/Users/user/Desktop/yozora-app/docs/DEMO_CONTENT_CLEANUP.md) for safe pre-launch test content purge instructions.
+- Refer to [`docs/DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md) for full deployment instructions on Vercel and Supabase.
+- Refer to [`docs/DEMO_CONTENT_CLEANUP.md`](./DEMO_CONTENT_CLEANUP.md) for safe pre-launch test content purge instructions.
 
 ---
 
@@ -212,8 +212,8 @@ Implemented in `lib/video/secure-delivery.js` and `app/api/video/token/route.js`
   - Connect buyer's Vercel team account and assign production domain.
 - [ ] **Day 4–7: Credential Rotation:**
   - Generate fresh `SUPABASE_SERVICE_ROLE_KEY` in Supabase dashboard.
-  - Generate fresh `PLAYBACK_TOKEN_SECRET` hex string.
-  - Apply migration `017_distributed_rate_limiting.sql` in Supabase SQL Editor.
+  - Generate fresh `VIDEO_SIGNING_KEY` 32+ character hex or random string.
+  - Verify migration `017_distributed_rate_limiting.sql` (already active on production database).
 - [ ] **Day 8–14: Merchant Provider Onboarding:**
   - Submit business verification to Click.uz and Payme (Paycom).
   - Configure production merchant credentials in Vercel environment variables.

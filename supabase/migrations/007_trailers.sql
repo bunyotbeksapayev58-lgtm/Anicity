@@ -21,22 +21,13 @@ CREATE INDEX IF NOT EXISTS idx_trailers_active_sort ON public.trailers (is_activ
 
 ALTER TABLE public.trailers ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'trailers' AND policyname = 'trailers read'
-  ) THEN
-    CREATE POLICY "trailers read" ON public.trailers FOR SELECT TO anon, authenticated
-      USING (is_active = true OR is_staff());
-  END IF;
+DROP POLICY IF EXISTS "trailers read" ON public.trailers;
+CREATE POLICY "trailers read" ON public.trailers FOR SELECT TO anon, authenticated
+  USING (is_active = true OR is_staff());
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'trailers' AND policyname = 'trailers admin write'
-  ) THEN
-    CREATE POLICY "trailers admin write" ON public.trailers FOR ALL TO authenticated
-      USING (is_admin()) WITH CHECK (is_admin());
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "trailers admin write" ON public.trailers;
+CREATE POLICY "trailers admin write" ON public.trailers FOR ALL TO authenticated
+  USING (is_admin()) WITH CHECK (is_admin());
 
 GRANT SELECT ON public.trailers TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON public.trailers TO authenticated;

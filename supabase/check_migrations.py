@@ -139,8 +139,11 @@ AUTH_ALLOWED = {
 }
 for m in re.finditer(r'grant\s+execute\s+on\s+function\s+public\.(\w+)\s*\([^)]*\)\s+to\s+([\w,\s]+);', ALL, re.I):
     fname, roles = m.group(1).lower(), [r.strip().lower() for r in m.group(2).split(',')]
+    SERVICE_ROLE_ALLOWED = {'check_rate_limit'}
     for r in roles:
-        if r in ('anon', 'public', 'service_role'):
+        if r in ('anon', 'public'):
+            errors.append(f'{fname} EXECUTE {r} ga berilgan — taqiqlangan')
+        elif r == 'service_role' and fname not in SERVICE_ROLE_ALLOWED:
             errors.append(f'{fname} EXECUTE {r} ga berilgan — taqiqlangan')
         if r == 'authenticated' and fname not in AUTH_ALLOWED:
             errors.append(f'{fname} EXECUTE authenticated ga berilgan — ruxsat ro\'yxatida emas')

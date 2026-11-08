@@ -92,13 +92,21 @@ export async function POST(request) {
   // ==========================================
   // 3. SANDBOX & GENERIC TESTING ROUTING
   // ==========================================
+  // In production, sandbox payments are disabled unless explicitly enabled with a strong non-default secret
+  if (process.env.NODE_ENV === 'production') {
+    const sbSecret = process.env.PAYMENTS_SANDBOX_SECRET;
+    if (!sbSecret || sbSecret === 'anicity-sandbox-secret' || process.env.ENABLE_PAYMENTS_SANDBOX !== 'true') {
+      return NextResponse.json({ error: 'Sandbox payments are disabled in production' }, { status: 403 });
+    }
+  }
+
   const isSandboxValid = verifyWebhookSignature({
     provider: 'sandbox',
     headers: request.headers,
     body,
   });
 
-  if (!isSandboxValid && process.env.NODE_ENV === 'production') {
+  if (!isSandboxValid) {
     return NextResponse.json({ error: 'Unauthorized sandbox request' }, { status: 401 });
   }
 

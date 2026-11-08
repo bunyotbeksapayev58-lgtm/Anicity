@@ -77,14 +77,26 @@ ALTER TABLE public.subscription_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscription_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+DROP POLICY IF EXISTS "Plans are viewable by everyone" ON public.subscription_plans;
 CREATE POLICY "Plans are viewable by everyone" ON public.subscription_plans FOR SELECT USING (is_active = true OR is_admin());
+
+DROP POLICY IF EXISTS "Admins can manage plans" ON public.subscription_plans;
 CREATE POLICY "Admins can manage plans" ON public.subscription_plans FOR ALL USING (is_admin()) WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Users can view own subscriptions" ON public.user_subscriptions FOR SELECT USING (auth.uid() = user_id OR is_admin());
+
+DROP POLICY IF EXISTS "Admins can manage user subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Admins can manage user subscriptions" ON public.user_subscriptions FOR ALL USING (is_admin()) WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Users can view own transactions" ON public.subscription_transactions;
 CREATE POLICY "Users can view own transactions" ON public.subscription_transactions FOR SELECT USING (auth.uid() = user_id OR is_admin());
+
+DROP POLICY IF EXISTS "Admins can manage transactions" ON public.subscription_transactions;
 CREATE POLICY "Admins can manage transactions" ON public.subscription_transactions FOR ALL USING (is_admin()) WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Admins can view audit logs" ON public.subscription_audit_logs;
 CREATE POLICY "Admins can view audit logs" ON public.subscription_audit_logs FOR SELECT USING (is_admin());
+
+DROP POLICY IF EXISTS "Admins can insert audit logs" ON public.subscription_audit_logs;
 CREATE POLICY "Admins can insert audit logs" ON public.subscription_audit_logs FOR INSERT WITH CHECK (is_admin());

@@ -1,125 +1,43 @@
-# AniCity — Demo Content Cleanup & Catalog Migration Guide
+# AniCity — Pre-Launch Demo Content Purge & Clean-Slate Runbook
 
-**Author:** AniCity Database Architect & Operations Lead  
-**Date:** November 2026  
-**Status:** PRODUCTION OPERATIONAL PROCEDURE  
-**Target Environment:** Supabase PostgreSQL Database
+Ushbu yo‘riqnoma yangi xaridor yoki platforma egasiga sinov (test) animelari, izohlar va namuna qismlarini tozalab, platformani yangi kontent yuklash uchun 0 dan tayyorlash imkonini beradi.
 
 ---
 
-## 1. Overview & Objective
+## 1. Supabase SQL orqali Test Kontentni Tozalash
 
-During development and automated testing, demo anime records (such as sample seeds for *Suzume*, *Your Name*, *Attack on Titan*, or *Test Series*) were created in the Supabase database.
-
-This guide provides a safe, idempotent procedure to purge mock and demo content before launching commercial production or transferring ownership to a buyer, **without harming real user accounts, user subscriptions, payments, or administrative roles.**
-
----
-
-## 2. Foreign Key Cascade Architecture
-
-AniCity's relational schema is designed with strict foreign key constraints:
-- `animes.id` is referenced by:
-  - `episodes.anime_id` (`ON DELETE CASCADE`)
-  - `trailers.anime_id` (`ON DELETE CASCADE`)
-  - `favorites.anime_id` (`ON DELETE CASCADE`)
-  - `watch_progress.anime_id` (`ON DELETE CASCADE`)
-  - `ratings.anime_id` (`ON DELETE CASCADE`)
-
-**Safety Guarantee:**  
-Deleting an anime record automatically and cleanly cascades to all its associated episodes, trailers, and user watch progress records. It **does NOT** touch:
-- `public.profiles` (User identity & display names)
-- `public.user_roles` (Admin / Moderator / Assistant roles)
-- `public.user_subscriptions` (VIP active dates)
-- `public.payments` (Click & Payme transaction records)
-- `public.subscription_audit_logs` (Financial audit trail)
-
----
-
-## 3. Step 1: Pre-Execution Inspection (Dry Run)
-
-Before deleting any data, open the **Supabase Dashboard -> SQL Editor** and run the following inspection query to view all current anime entries in the database:
+Agar siz barcha test animelari va epizodlarni o‘chirib, tizimni toza boshlamoqchi bo‘lsangiz, Supabase Dashboard → **SQL Editor** da quyidagi buyruqni bajaring:
 
 ```sql
--- Step 1.1: List all existing animes with their episode counts
-SELECT 
-    a.id, 
-    a.title, 
-    a.slug, 
-    a.is_published, 
-    a.created_at,
-    COUNT(e.id) AS total_episodes
-FROM public.animes a
-LEFT JOIN public.episodes e ON e.anime_id = a.id
-GROUP BY a.id, a.title, a.slug, a.is_published, a.created_at
-ORDER BY a.created_at DESC;
+-- 1. Epizodlar, ko'rish tarixi va sevimlilarni tozalash (Foreign keylar CASCADE bilan bog'langan)
+DELETE FROM public.episodes;
+DELETE FROM public.watch_progress;
+DELETE FROM public.favorites;
+DELETE FROM public.comments;
+DELETE FROM public.ratings;
+DELETE FROM public.trailers;
+
+-- 2. Test animelarni tozalash
+DELETE FROM public.animes;
+
+-- 3. Obuna jurnallari va test tranzaksiyalarini tozalash (Admin akkauntlari saqlab qolinadi)
+DELETE FROM public.subscription_transactions;
+DELETE FROM public.subscription_audit_logs;
+DELETE FROM public.user_subscriptions;
+
+-- 4. Rate limit statistikasini yangilash
+TRUNCATE TABLE public.rate_limits;
 ```
 
-Review the returned list to identify which entries are demo test records (e.g., titles containing "Demo", "Test", "Sample") versus genuine content uploaded by your team (e.g., *Code Geass*).
+> **Eslatma:** Ushbu so‘rov administrator foydalanuvchilarini (`profiles`) va obuna tariflarini (`subscription_plans`) saqlab qoladi, faqat sinov animelari va epizodlarini tozalaydi.
 
 ---
 
-## 4. Step 2: Selective Purge (Recommended)
+## 2. Tozalashdan So‘ng Yangi Kontent Yuklash
 
-If you have real uploaded content (such as *Code Geass*) that you want to preserve while removing only demo titles, use targeted deletion by ID or title:
-
-```sql
--- Step 2.1: Delete specific demo anime by ID (Recommended Safe Mode)
--- Replace the UUIDs below with the exact IDs from your Step 1 inspection
-DELETE FROM public.animes
-WHERE id IN (
-    '00000000-0000-0000-0000-000000000001', -- Example demo UUID 1
-    '00000000-0000-0000-0000-000000000002'  -- Example demo UUID 2
-);
-
--- OR Step 2.2: Delete by title matching known demo keywords
-DELETE FROM public.animes
-WHERE title ILIKE '%demo%' 
-   OR title ILIKE '%test seed%' 
-   OR title ILIKE '%sample%';
-```
-
----
-
-## 5. Step 3: Complete Catalog Reset (Clean Slate Mode)
-
-If you are handing the platform to a buyer who wants a completely clean catalog to populate from scratch via the Admin Panel:
-
-> [!CAUTION]
-> This command will permanently delete ALL anime titles, episodes, and watch progress. User accounts and subscriptions will remain untouched.
-
-```sql
-BEGIN;
-
--- 1. Truncate anime catalog with cascade
-TRUNCATE TABLE public.animes CASCADE;
-
--- 2. Verify all dependent tables are cleanly reset
-SELECT COUNT(*) AS remaining_animes FROM public.animes;
-SELECT COUNT(*) AS remaining_episodes FROM public.episodes;
-SELECT COUNT(*) AS remaining_trailers FROM public.trailers;
-SELECT COUNT(*) AS remaining_progress FROM public.watch_progress;
-
--- If counts are all 0 and you are satisfied, COMMIT:
-COMMIT;
--- If any mistake occurred, ROLLBACK;
-```
-
----
-
-## 6. Step 4: Storage Asset Cleanup (Optional)
-
-If demo posters, banners, or video files were uploaded to Supabase Storage:
-
-1. In Supabase Dashboard, navigate to **Storage -> Buckets**.
-2. Open the `posters` bucket: Select demo images and click **Delete**.
-3. Open the `banners` bucket: Select demo banners and click **Delete**.
-4. Open the `avatars` bucket: **DO NOT DELETE** — user profile avatars reside here.
-
----
-
-## 7. Step 5: Post-Cleanup Verification
-
-After running the cleanup:
-1. Visit `https://your-domain.vercel.app/catalog`: Catalog should display the empty state or only your real anime (*Code Geass*).
-2. Visit `https://your-domain.vercel.app/admin`: Admin dashboard should accurately reflect the active anime count.
-3. User login, profile page, and VIP subscriptions continue functioning seamlessly.
+1. Saytga kiring va administrator hisobingiz bilan tizimga kiring.
+2. Yuqori o‘ng burchakdagi **Admin** tugmasini bosing (`/admin`).
+3. **Animelar** bo‘limida yangi anime yarating (Sarlavha, Janrlar, Yil, Tavsif, Poster).
+4. **Epizodlar** bo‘limida seriyalarni qo‘shing:
+   - Google Drive havola orqali: `https://drive.google.com/file/d/.../view?usp=sharing`
+   - Yoki to‘g‘ridan-to‘g‘ri HLS/MP4 oqim havolasi: `https://cdn.sizning-saytingiz.uz/.../master.m3u8`

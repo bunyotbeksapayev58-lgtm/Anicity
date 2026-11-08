@@ -17,14 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_expires_at ON public.rate_limits(expi
 ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- RLS: Only authenticated administrators can view rate limit metrics; no direct client mutations
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'rate_limits' AND policyname = 'Admins can view rate limits'
-  ) THEN
-    CREATE POLICY "Admins can view rate limits" ON public.rate_limits FOR SELECT TO authenticated USING (is_admin());
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Admins can view rate limits" ON public.rate_limits;
+CREATE POLICY "Admins can view rate limits" ON public.rate_limits FOR SELECT TO authenticated USING (is_admin());
 
 -- Atomic sliding-window rate limit checker
 CREATE OR REPLACE FUNCTION public.check_rate_limit(
