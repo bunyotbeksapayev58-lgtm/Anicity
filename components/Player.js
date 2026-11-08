@@ -571,10 +571,10 @@ export default function Player({
       setIsIframeLoading(true);
       setIframeError(false);
 
-      // Non-blocking safety fallback: after 10s hide loading spinner
+      // Non-blocking safety fallback: after 4s hide loading spinner
       const timer = setTimeout(() => {
         setIsIframeLoading(false);
-      }, 10000);
+      }, 4000);
 
       return () => clearTimeout(timer);
     }
@@ -691,7 +691,7 @@ export default function Player({
   // Mobile Direct Stream Fallback: If source provides direct video (MP4/HLS), render native <video controls playsInline>
   if (isMobileDevice && isDirectVideo) {
     return (
-      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center">
+      <div className="ani-player-mobile-native relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center">
         <video
           ref={videoRef}
           src={playableUrl}

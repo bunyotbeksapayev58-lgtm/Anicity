@@ -4640,7 +4640,7 @@ input:focus, select:focus, textarea:focus {
   aspect-ratio: 16 / 9 !important;
   min-height: 185px !important;
   background: #000 !important;
-  border-radius: 12px !important;
+  border-radius: 14px 14px 0 0 !important;
   overflow: hidden !important;
   display: flex !important;
   align-items: center !important;
@@ -4750,6 +4750,7 @@ input:focus, select:focus, textarea:focus {
   padding: 9px 16px;
   background: rgba(14, 14, 22, 0.98);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 14px 14px;
   min-height: 44px;
 }
 
@@ -5236,6 +5237,7 @@ input:focus, select:focus, textarea:focus {
    WATCH PAGE REDESIGNED COMPONENT STYLES
    ============================================================================ */
 .watch-page-pro {
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 16px 24px 60px;
@@ -5716,7 +5718,41 @@ input:focus, select:focus, textarea:focus {
 
 @media (max-width: 768px) {
   .watch-page-pro {
-    padding: 10px 12px 80px; /* space for mobile bottom bar */
+    width: 100% !important;
+    padding: 10px 12px 80px !important; /* space for mobile bottom bar */
+  }
+  .watch-wrap {
+    padding: 4px 0 28px !important;
+    gap: 16px !important;
+    width: 100% !important;
+  }
+  .player {
+    min-height: auto !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+  }
+  .ani-drive-frame-box {
+    min-height: auto !important;
+    border-radius: 14px 14px 0 0 !important;
+  }
+  .ani-drive-external-bar {
+    border-radius: 0 0 14px 14px !important;
+    padding: 8px 12px !important;
+    min-height: 40px !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+  }
+  .ani-drive-bar-actions {
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .ani-drive-bar-btn {
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+    min-height: 32px !important;
+  }
+  .ani-drive-reload-overlay-btn {
+    display: none !important;
   }
   .watch-main-title {
     font-size: 18px;
@@ -5773,7 +5809,11 @@ input:focus, select:focus, textarea:focus {
     flex-shrink: 0;
   }
   .watch-page-pro {
-    padding: 12px 10px 48px;
+    padding: 8px 10px 60px !important;
+    width: 100% !important;
+  }
+  .watch-wrap {
+    padding: 0 0 20px !important;
   }
   .watch-nav-header {
     padding: 8px 12px;
@@ -7574,11 +7614,11 @@ input:focus, select:focus, textarea:focus {
 .inset-0 { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 .border-0 { border: 0 !important; }
 
-/* Interactive Quick Reload Overlay Button */
+/* Interactive Quick Reload Overlay Button (Desktop hover only; hidden on touch/mobile to prevent overlapping player controls) */
 .ani-drive-reload-overlay-btn {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -7593,8 +7633,15 @@ input:focus, select:focus, textarea:focus {
   font-weight: 500;
   z-index: 20;
   cursor: pointer;
-  transition: all 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.ani-drive-frame-box:hover .ani-drive-reload-overlay-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .ani-drive-reload-overlay-btn:hover {
@@ -7855,4 +7902,25 @@ button:disabled,
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Native Mobile Video Stream Fallback */
+.ani-player-mobile-native {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  background: #000 !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+.ani-player-mobile-native video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #000 !important;
 }
