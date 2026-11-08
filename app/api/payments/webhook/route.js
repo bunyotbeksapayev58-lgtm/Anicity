@@ -1,67 +1,117 @@
-import { json, fail } from '@/lib/api';
+import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  PAYMENT_PROVIDERS,
-  verifyWebhookSignature,
+  verifyClickSignature,
+  handleClickPrepare,
+  handleClickComplete,
+  CLICK_ERROR,
+} from '@/lib/payments/click';
+import {
+  verifyPaymeAuth,
+  handlePaymeRpc,
+  PAYME_ERROR,
+} from '@/lib/payments/payme';
+import {
   calculateSubscriptionDates,
+  verifyWebhookSignature,
 } from '@/lib/payments/provider';
 
 export async function POST(request) {
   const url = new URL(request.url);
-  const provider = (url.searchParams.get('provider') || 'sandbox').toLowerCase();
+  const providerParam = url.searchParams.get('provider')?.toLowerCase();
+  const authHeader = request.headers.get('authorization') || '';
 
   let body;
   try {
     body = await request.json();
   } catch {
-    return fail('Yaroqsiz JSON payload', 400);
-  }
-
-  // 1. Signature Verification
-  const isValid = verifyWebhookSignature({
-    provider,
-    headers: request.headers,
-    body,
-  });
-
-  if (!isValid && process.env.NODE_ENV === 'production') {
-    return fail('Imzo mos kelmadi (Signature invalid)', 401);
+    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return fail('Server konfiguratsiyasi xatosi', 500);
+    return NextResponse.json({ error: 'Database admin configuration error' }, { status: 500 });
   }
 
-  // 2. Extract transaction identifiers based on provider
-  let txId = '';
-  let userId = '';
-  let planId = '';
-  let amountUzs = 0;
+  // ==========================================
+  // 1. PAYME JSON-RPC 2.0 ROUTING
+  // ==========================================
+  const isPayme = providerParam === 'payme' || (body && typeof body.method === 'string' && body.jsonrpc === '2.0');
+  if (isPayme) {
+    const isAuth = verifyPaymeAuth(authHeader);
+    if (!isAuth && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        {
+          jsonrpc: '2.0',
+          id: body?.id,
+          error: {
+            code: PAYME_ERROR.ACCESS_DENIED,
+            message: { uz: 'Ruxsat berilmadi', ru: 'Доступ запрещен', en: 'Access denied' },
+          },
+        },
+        { status: 200 } // Payme expects HTTP 200 with JSON-RPC error
+      );
+    }
 
-  if (provider === PAYMENT_PROVIDERS.CLICK) {
-    txId = String(body.click_trans_id || '');
-    userId = String(body.merchant_trans_id || '');
-    planId = String(body.additional_param3 || '');
-    amountUzs = Number(body.amount) || 0;
-  } else if (provider === PAYMENT_PROVIDERS.PAYME) {
-    txId = String(body.params?.id || body.id || '');
-    userId = String(body.params?.account?.user_id || '');
-    planId = String(body.params?.account?.plan_id || '');
-    amountUzs = Math.round((Number(body.params?.amount) || 0) / 100);
-  } else {
-    // Sandbox / Generic
-    txId = String(body.transaction_id || `sbx-${Date.now()}`);
-    userId = String(body.user_id || '');
-    planId = String(body.plan_id || '');
-    amountUzs = Number(body.amount_uzs) || 0;
+    const paymeResult = await handlePaymeRpc(body, admin);
+    return NextResponse.json(paymeResult);
   }
+
+  // ==========================================
+  // 2. CLICK MERCHANT API ROUTING
+  // ==========================================
+  const isClick = providerParam === 'click' || ('click_trans_id' in (body || {}));
+  if (isClick) {
+    const isSignValid = verifyClickSignature(body);
+    if (!isSignValid && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({
+        click_trans_id: body?.click_trans_id,
+        merchant_trans_id: body?.merchant_trans_id,
+        error: CLICK_ERROR.SIGN_CHECK_FAILED,
+        error_note: 'SIGN CHECK FAILED',
+      });
+    }
+
+    const action = Number(body?.action);
+    if (action === 0) {
+      const prepRes = await handleClickPrepare(body, admin);
+      return NextResponse.json(prepRes);
+    } else if (action === 1) {
+      const compRes = await handleClickComplete(body, admin);
+      return NextResponse.json(compRes);
+    } else {
+      return NextResponse.json({
+        click_trans_id: body?.click_trans_id,
+        merchant_trans_id: body?.merchant_trans_id,
+        error: CLICK_ERROR.ACTION_NOT_FOUND,
+        error_note: 'Action not found',
+      });
+    }
+  }
+
+  // ==========================================
+  // 3. SANDBOX & GENERIC TESTING ROUTING
+  // ==========================================
+  const isSandboxValid = verifyWebhookSignature({
+    provider: 'sandbox',
+    headers: request.headers,
+    body,
+  });
+
+  if (!isSandboxValid && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Unauthorized sandbox request' }, { status: 401 });
+  }
+
+  const txId = String(body.transaction_id || `sbx-${Date.now()}`);
+  const userId = String(body.user_id || '');
+  const planId = String(body.plan_id || '');
+  const amountUzs = Number(body.amount_uzs) || 0;
 
   if (!txId || !userId) {
-    return fail('Tranzaksiya ma’lumotlari yetarli emas', 422);
+    return NextResponse.json({ error: 'Missing user_id or transaction_id' }, { status: 422 });
   }
 
-  // 3. Idempotency Check: Don't double process already completed transactions
+  // Check idempotency
   const { data: existingTx } = await admin
     .from('subscription_transactions')
     .select('id, status')
@@ -69,14 +119,13 @@ export async function POST(request) {
     .maybeSingle();
 
   if (existingTx && existingTx.status === 'completed') {
-    return json({
+    return NextResponse.json({
       success: true,
-      message: 'Tranzaksiya avval bajarilgan (idempotent)',
+      message: 'Transaction already processed (idempotent)',
       transaction_id: txId,
     });
   }
 
-  // 4. Retrieve plan details
   let plan = null;
   if (planId) {
     const { data: p } = await admin
@@ -87,19 +136,9 @@ export async function POST(request) {
     plan = p;
   }
 
-  // Fallback to active 30-day plan if specific plan not found
-  if (!plan) {
-    const { data: defaultPlan } = await admin
-      .from('subscription_plans')
-      .select('*')
-      .eq('is_active', true)
-      .order('price_uzs', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    plan = defaultPlan || { id: null, name: 'VIP Standart', duration_days: 30 };
-  }
+  const planDays = plan?.duration_days || 30;
+  const planName = plan?.name || 'VIP Standart';
 
-  // 5. Check if user currently has an active subscription to extend
   const { data: currentSubs } = await admin
     .from('user_subscriptions')
     .select('expires_at')
@@ -109,62 +148,37 @@ export async function POST(request) {
     .limit(1);
 
   const existingExpiresAt = currentSubs?.[0]?.expires_at || null;
-  const { startsAt, expiresAt, isExtended } = calculateSubscriptionDates(
-    plan.duration_days || 30,
-    existingExpiresAt
-  );
+  const { startsAt, expiresAt, isExtended } = calculateSubscriptionDates(planDays, existingExpiresAt);
 
-  // 6. Record or update transaction as completed
   await admin.from('subscription_transactions').upsert(
     {
       transaction_id: txId,
       user_id: userId,
-      plan_id: plan.id,
+      plan_id: plan?.id || null,
       amount_uzs: amountUzs,
       currency: 'UZS',
-      provider: provider === PAYMENT_PROVIDERS.CLICK ? 'click' : provider === PAYMENT_PROVIDERS.PAYME ? 'payme' : 'other',
+      provider: 'other',
       status: 'completed',
-      metadata: { webhook_body: body, extended: isExtended },
+      metadata: { webhook_body: body, isExtended },
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'transaction_id' }
   );
 
-  // 7. Insert active user subscription
-  const { data: newSub, error: subError } = await admin
-    .from('user_subscriptions')
-    .insert({
-      user_id: userId,
-      plan_id: plan.id,
-      plan_name: plan.name,
-      status: 'active',
-      starts_at: startsAt,
-      expires_at: expiresAt,
-      grant_type: 'online_payment',
-      notes: `To‘lov tizimi: ${provider.toUpperCase()}, TxID: ${txId}`,
-    })
-    .select()
-    .single();
-
-  if (subError) {
-    return fail(`Obunani faollashtirishda xatolik: ${subError.message}`, 500);
-  }
-
-  // 8. Log audit trail
-  await admin.from('subscription_audit_logs').insert({
+  await admin.from('user_subscriptions').insert({
     user_id: userId,
-    action: isExtended ? 'extend' : 'grant',
-    previous_plan: currentSubs?.[0]?.plan_name || null,
-    previous_expires_at: existingExpiresAt,
-    new_plan: plan.name,
-    new_expires_at: expiresAt,
-    reason: `Avtomatik to‘lov orqali faollashtirildi (${provider.toUpperCase()})`,
+    plan_id: plan?.id || null,
+    plan_name: planName,
+    status: 'active',
+    starts_at: startsAt,
+    expires_at: expiresAt,
+    grant_type: 'online_payment',
+    notes: `Sandbox to‘lovi: TxID ${txId}`,
   });
 
-  return json({
+  return NextResponse.json({
     success: true,
     transaction_id: txId,
-    subscription_id: newSub?.id,
     expires_at: expiresAt,
   });
 }

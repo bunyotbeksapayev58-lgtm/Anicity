@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Hls from 'hls.js';
 import { createClient } from '@/lib/supabase/client';
 import { toPlayableUrl, isDriveUrl, extractDriveFileId } from '@/lib/drive';
 
@@ -90,6 +91,8 @@ export default function Player({
   const driveId = extractDriveFileId(src);
   const driveUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : playableUrl;
   const isDirectVideo = Boolean(!isDrive && playableUrl && /\.(mp4|webm|ogg|mkv|mov)(\?|$)/i.test(playableUrl));
+  const isHls = Boolean(!isDrive && playableUrl && /\.m3u8(\?|$)/i.test(playableUrl));
+  const isDirectStream = isDirectVideo || isHls;
 
   // Mobile device detection for direct stream native fallback
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -120,6 +123,10 @@ export default function Player({
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [hlsQualities, setHlsQualities] = useState([]);
+  const [currentQuality, setCurrentQuality] = useState(-1);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const hlsRef = useRef(null);
 
   // Google Drive specific states
   const [isIframeLoading, setIsIframeLoading] = useState(true);
@@ -160,6 +167,63 @@ export default function Player({
     } catch (_) {}
   }, []);
 
+
+
+  // HLS playback engine mount
+  useEffect(() => {
+    if (!isHls || !playableUrl || !videoRef.current) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
+
+      hls.loadSource(playableUrl);
+      hls.attachMedia(videoRef.current);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        setIsLoading(false);
+        if (data.levels && data.levels.length > 0) {
+          setHlsQualities(data.levels);
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              hls.destroy();
+              setHasError(true);
+              setErrorMessage('HLS oqimini yuklashda xatolik yuz berdi');
+              break;
+          }
+        }
+      });
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+      videoRef.current.src = playableUrl;
+    }
+  }, [isHls, playableUrl]);
+
+  const changeQuality = (levelIndex) => {
+    setCurrentQuality(levelIndex);
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = levelIndex;
+    }
+    setShowQualityMenu(false);
+  };
 
   // Save progress for direct HTML5 video
   const saveProgress = useCallback(async ({ force = false, completed = false } = {}) => {
@@ -643,7 +707,7 @@ export default function Player({
   return (
     <>
       {/* 1. DIRECT HTML5 VIDEO SOURCE */}
-      {isDirectVideo ? (
+      {(isDirectVideo || isHls) ? (
         <div
           ref={containerRef}
           className={`ani-player-wrapper ${isFullscreen ? 'is-fullscreen' : ''}`}
@@ -653,7 +717,7 @@ export default function Player({
           <div className="ani-player-inner">
             <video
               ref={videoRef}
-              src={playableUrl}
+              src={isHls ? undefined : playableUrl}
               className="ani-video-element"
               playsInline
               preload="metadata"
@@ -812,6 +876,40 @@ export default function Player({
                   </div>
 
                   {/* Right controls: Speed, Fullscreen */}
+                    {isHls && hlsQualities.length > 0 && (
+                      <div className="ani-player-speed-wrap quality-wrap">
+                        <button
+                          type="button"
+                          className="ani-player-ctrl-btn quality-btn"
+                          onClick={() => setShowQualityMenu(!showQualityMenu)}
+                          aria-label="Video sifatini tanlash"
+                        >
+                          {currentQuality === -1 ? 'Auto' : `${hlsQualities[currentQuality]?.height || 720}p`}
+                        </button>
+                        {showQualityMenu && (
+                          <div className="ani-player-speed-menu quality-menu">
+                            <button
+                              type="button"
+                              className={`ani-speed-item ${currentQuality === -1 ? 'active' : ''}`}
+                              onClick={() => changeQuality(-1)}
+                            >
+                              Auto
+                            </button>
+                            {hlsQualities.map((lvl, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className={`ani-speed-item ${currentQuality === idx ? 'active' : ''}`}
+                                onClick={() => changeQuality(idx)}
+                              >
+                                {lvl.height}p
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   <div className="ani-player-right-group">
                     <div className="ani-player-speed-wrap">
                       <button

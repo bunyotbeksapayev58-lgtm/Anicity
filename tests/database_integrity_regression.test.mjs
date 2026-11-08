@@ -7,7 +7,7 @@ test('1. Database schema and migration integrity checks', () => {
   const migrationsDir = path.resolve('supabase/migrations');
   const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
 
-  assert.ok(files.length >= 16, 'At least 16 migration files must exist');
+  assert.ok(files.length >= 17, 'At least 17 migration files must exist');
 
   // Verify core schema (001)
   const coreSql = fs.readFileSync(path.join(migrationsDir, '001_core_schema.sql'), 'utf8');
@@ -33,6 +33,12 @@ test('1. Database schema and migration integrity checks', () => {
   // Verify security hardening in 015
   const hardenSql = fs.readFileSync(path.join(migrationsDir, '015_assistant_security_audit_fixes.sql'), 'utf8');
   assert.ok(hardenSql.includes('SET search_path = pg_catalog, public, pg_temp;'), 'RPCs must be hardened with explicit search_path');
+
+  // Verify distributed rate limiting in 017
+  const rateLimitSql = fs.readFileSync(path.join(migrationsDir, '017_distributed_rate_limiting.sql'), 'utf8');
+  assert.match(rateLimitSql, /create table if not exists public\.rate_limits/i);
+  assert.match(rateLimitSql, /create or replace function public\.check_rate_limit/i);
+  assert.ok(rateLimitSql.includes('SET search_path = pg_catalog, public, pg_temp'), 'Rate limit RPC must have hardened search_path');
 });
 
 test('2. Foreign key cascade and delete safety in schema', () => {

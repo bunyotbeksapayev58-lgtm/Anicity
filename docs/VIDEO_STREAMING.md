@@ -4,11 +4,12 @@
 
 AniCity delivers video streaming through a resilient, multi-tiered architecture that supports both external embed providers (Google Drive, Cloudflare Stream) and native direct streams (HLS adaptive bitrate, MP4, WebM).
 
-The streaming pipeline is designed to eliminate common streaming failure points:
+The streaming pipeline eliminates common video failure modes:
 - Mobile black-screen issues on third-party embeds.
 - Volume blasts upon video initialization.
 - Fullscreen inconsistencies across Safari, Chrome, and Firefox.
 - Inaccessible scrubber controls for assistive technologies.
+- Direct hotlinking and unauthorized CDN leaching via HMAC-SHA256 playback tokens.
 
 ---
 
@@ -25,9 +26,10 @@ Stream URL ──► detectProvider(url) ──► getPlaybackSource(url)
    (Google Drive, Cloudflare)                                   (HLS .m3u8, MP4, WebM)
                │                                                         │
    Protected Sandbox Iframe                                    Custom Video Controller
-   - Popout Guard                                              - Keyboard Shortcuts
-   - Reload Overlay                                            - Scrubbing / ARIA
-   - ReferrerPolicy="no-referrer"                              - Volume Persistence
+   - Popout Guard                                              - hls.js Adaptive Bitrate Engine
+   - Reload Overlay                                            - Dynamic Quality Level Selector
+   - ReferrerPolicy="no-referrer"                              - Buffer & Network Recovery
+                                                               - Keyboard Shortcuts & Scrubbing
 ```
 
 ### Supported Stream Types
@@ -42,7 +44,25 @@ Stream URL ──► detectProvider(url) ──► getPlaybackSource(url)
 
 ---
 
-## 3. Cryptographic Playback Authorization Tokens
+## 3. HLS Adaptive Bitrate Engine (`components/Player.js`)
+
+For `.m3u8` streams, `components/Player.js` dynamically initializes `hls.js`:
+
+### 3.1 Lifecycle & Capabilities
+- **Browser Compatibility:**
+  - Standard Modern Browsers: Mounts `Hls.isSupported()` engine.
+  - Safari & iOS: Mounts native HLS fallback via `video.canPlayType('application/vnd.apple.mpegurl')`.
+- **Quality Level Selection:**
+  - Listens to `Hls.Events.MANIFEST_PARSED` and extracts available levels (e.g. `1080p`, `720p`, `480p`, `360p`).
+  - Provides a UI quality selector popover (`.quality-btn`, `.quality-menu`) allowing users to switch quality levels manually or choose `Auto` (ABR).
+- **Automated Error Recovery:**
+  - Network Errors (`Hls.ErrorTypes.NETWORK_ERROR`): Calls `hls.startLoad()` to seamlessly resume streaming without halting playback.
+  - Media Buffer Errors (`Hls.ErrorTypes.MEDIA_ERROR`): Calls `hls.recoverMediaError()` to clear corrupt decoding segments.
+  - Fatal Errors: Triggers user-friendly retry button with clean resource destruction (`hls.destroy()`).
+
+---
+
+## 4. Cryptographic Playback Authorization Tokens (`/api/video/token`)
 
 For premium or protected streams, AniCity issues time-bound, cryptographically signed playback tokens to prevent direct hotlinking and unauthorized CDN leaching:
 
@@ -60,13 +80,15 @@ const token = generatePlaybackToken({
 const { valid, payload, reason } = verifyPlaybackToken(token);
 ```
 
+### Authorization Endpoint (`app/api/video/token/route.js`)
+- `POST /api/video/token`: Authenticates the user, validates subscription status, and returns a signed token bound to `userId` and `episodeId`.
+- `GET /api/video/token?token=...&episodeId=...`: Verifies token signature, expiration timestamp, and resource binding.
 - **Algorithm:** HMAC-SHA256
 - **Timing Safe:** Uses `crypto.timingSafeEqual()` to eliminate timing attack vectors.
-- **Payload:** Includes `userId`, `episodeId`, `expiresAt`, and a cryptographic `nonce`.
 
 ---
 
-## 4. Google Drive Embed Hardening
+## 5. Google Drive Embed Hardening
 
 Google Drive links are converted and enclosed in a defensive container:
 1. **URL Normalization:** All forms (`/view`, `/uc?id=`, `open?id=`, `drive:ID`) are normalized to:
@@ -77,7 +99,7 @@ Google Drive links are converted and enclosed in a defensive container:
 
 ---
 
-## 5. Native Player UX & Accessibility Standards
+## 6. Native Player UX & Accessibility Standards
 
 The native HTML5 player (`components/Player.js`) adheres to strict psychological UX and accessibility guidelines:
 

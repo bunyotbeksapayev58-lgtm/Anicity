@@ -2,7 +2,7 @@
 
 ## 1. Overview & Connection Topology
 
-AniCity uses a managed **PostgreSQL 15** cluster hosted on **Supabase**. All database tables enforce PostgreSQL Row Level Security (RLS). Privileged transactions occur through `SECURITY DEFINER` stored procedures located in the `public` schema with fixed `search_path` controls.
+AniCity uses a managed **PostgreSQL 15** cluster hosted on **Supabase**. All database tables enforce PostgreSQL Row Level Security (RLS). Privileged transactions occur through `SECURITY DEFINER` stored procedures located in the `public` schema with fixed `search_path` controls (`SET search_path = pg_catalog, public, pg_temp`).
 
 ---
 
@@ -29,6 +29,7 @@ The database schema is constructed via an immutable, sequential migration pipeli
 | `014_assistant_permission_boundaries.sql` | Strict isolation of assistant permissions from owner capabilities. |
 | `015_assistant_security_audit_fixes.sql` | Hardened `search_path = pg_catalog, public, pg_temp` across all administrative RPCs. |
 | `016_episode_replacement_identity.sql` | Season-qualified episode replacement logic preserving published identity. |
+| `017_distributed_rate_limiting.sql` | Distributed serverless rate-limiting table and atomic `check_rate_limit` RPC. |
 
 ---
 
@@ -45,6 +46,7 @@ erDiagram
     ANIMES ||--o{ TRAILERS : features
     SUBSCRIPTION_PLANS ||--o{ USER_SUBSCRIPTIONS : governs
     SUBSCRIPTION_PLANS ||--o{ SUBSCRIPTION_TRANSACTIONS : prices
+    RATE_LIMITS ||--o{ PROFILES : tracks_quota
 ```
 
 ---
@@ -98,6 +100,14 @@ erDiagram
 - `status` (TEXT: 'pending', 'completed', 'failed', 'cancelled')
 - `metadata` (JSONB)
 
+### `public.rate_limits` (Added in 017)
+- `id` (BIGSERIAL, Primary Key)
+- `key` (TEXT, UNIQUE, Not Null) - e.g. `auth:login:1.2.3.4`
+- `points` (INT, Default 0) - Accumulated request count in window
+- `expires_at` (TIMESTAMPTZ, Not Null) - Sliding window expiration
+- `created_at` (TIMESTAMPTZ, Default now())
+- `updated_at` (TIMESTAMPTZ, Default now())
+
 ---
 
 ## 5. Security & Index Optimization
@@ -109,6 +119,7 @@ erDiagram
 - `idx_sub_tx_user_id` ON `subscription_transactions(user_id)`
 - `idx_sub_tx_status` ON `subscription_transactions(status)`
 - `idx_sub_audit_user_id` ON `subscription_audit_logs(user_id)`
+- `idx_rate_limits_expires_at` ON `rate_limits(expires_at)`
 
 ### Hardened RPC Configuration
 All admin RPCs are created with:

@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, escapeLike } from '@/lib/supabase/admin';
 import { getSiteUrl } from '@/lib/siteUrl';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, checkDistributedRateLimit } from '@/lib/rate-limit';
 
 const LOGIN_ERR = 'Login yoki parol noto‘g‘ri';
 
@@ -20,13 +20,14 @@ async function resolveSiteUrl() {
 
 export async function login(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
-  const limit = rateLimit('auth:login', reqHeaders, 5, 60);
+  const supabase = await createClient();
+  const limit = await checkDistributedRateLimit('auth:login', reqHeaders, 5, 60, supabase);
   if (!limit.allowed) return { error: limit.error };
+
   const input = String(formData.get('login') || '').trim();
   const password = String(formData.get('password') || '');
   if (!input || !password) return { error: 'Login va parolni kiriting' };
 
-  const supabase = await createClient();
   let email = input;
 
   // Username kiritilgan bo'lsa, emailni serverning o'zida topamiz
@@ -53,8 +54,10 @@ export async function login(prevState, formData) {
 
 export async function register(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
-  const limit = rateLimit('auth:register', reqHeaders, 3, 60);
+  const supabase = await createClient();
+  const limit = await checkDistributedRateLimit('auth:register', reqHeaders, 3, 60, supabase);
   if (!limit.allowed) return { error: limit.error };
+
   const username = String(formData.get('username') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
@@ -76,7 +79,6 @@ export async function register(prevState, formData) {
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
   const siteUrl = await resolveSiteUrl();
-  const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -96,11 +98,12 @@ export async function register(prevState, formData) {
 
 export async function forgotPassword(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
-  const limit = rateLimit('auth:forgot', reqHeaders, 3, 60);
+  const supabase = await createClient();
+  const limit = await checkDistributedRateLimit('auth:forgot', reqHeaders, 3, 60, supabase);
   if (!limit.allowed) return { error: limit.error };
+
   const email = String(formData.get('email') || '').trim();
   const siteUrl = await resolveSiteUrl();
-  const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
   });
@@ -110,14 +113,15 @@ export async function forgotPassword(prevState, formData) {
 
 export async function resetPassword(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
-  const limit = rateLimit('auth:reset', reqHeaders, 5, 60);
+  const supabase = await createClient();
+  const limit = await checkDistributedRateLimit('auth:reset', reqHeaders, 5, 60, supabase);
   if (!limit.allowed) return { error: limit.error };
+
   const password = String(formData.get('password') || '');
   const confirm = String(formData.get('confirm') || '');
   if (password.length < 6) return { error: 'Parol kamida 6 ta belgi bo‘lsin' };
   if (password !== confirm) return { error: 'Parollar bir xil emas' };
 
-  const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };
   redirect('/');

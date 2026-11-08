@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getClientIp, rateLimit, globalLimiter } from '../lib/rate-limit.js';
+import { getClientIp, rateLimit, checkDistributedRateLimit, globalLimiter } from '../lib/rate-limit.js';
 
 test('1. getClientIp correctly resolves client IP address from various header formats', () => {
   // Direct x-forwarded-for single IP
@@ -68,4 +68,51 @@ test('3. RateLimiter prune safely purges expired keys', () => {
   assert.equal(globalLimiter.storage.has(oldKey), false, 'Stale key must be purged');
   assert.equal(globalLimiter.storage.has(activeKey), true, 'Active key must be preserved');
   globalLimiter.reset(activeKey);
+});
+
+test('4. checkDistributedRateLimit handles Supabase RPC and fail-safe fallback', async () => {
+  // A. Successful distributed RPC execution
+  let rpcCalledWith = null;
+  const mockSupabaseSuccess = {
+    rpc: async (fn, params) => {
+      rpcCalledWith = { fn, params };
+      return {
+        data: { allowed: true, remaining: 4, reset_seconds: 59, current_count: 1 },
+        error: null,
+      };
+    },
+  };
+
+  const resDistributed = await checkDistributedRateLimit(
+    'auth:test',
+    { 'x-real-ip': '203.0.113.5' },
+    5,
+    60,
+    mockSupabaseSuccess
+  );
+
+  assert.equal(resDistributed.allowed, true);
+  assert.equal(resDistributed.remaining, 4);
+  assert.equal(resDistributed.distributed, true);
+  assert.equal(rpcCalledWith.fn, 'check_rate_limit');
+  assert.equal(rpcCalledWith.params.p_key, 'auth:test:203.0.113.5');
+
+  // B. Database RPC error -> gracefully falls back to local in-memory
+  const mockSupabaseError = {
+    rpc: async () => ({
+      data: null,
+      error: { message: 'Database connection failed' },
+    }),
+  };
+
+  const resFallback = await checkDistributedRateLimit(
+    'auth:fallback',
+    { 'x-real-ip': '203.0.113.6' },
+    5,
+    60,
+    mockSupabaseError
+  );
+
+  assert.equal(resFallback.allowed, true);
+  assert.equal(resFallback.distributed, false); // Fell back to memory safely
 });

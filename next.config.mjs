@@ -5,7 +5,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: { remotePatterns: [{ protocol: 'https', hostname: '**' }] },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'drive.google.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'cdn.myanimelist.net' },
+      { protocol: 'https', hostname: 's4.anilist.co' },
+      { protocol: 'https', hostname: 'm.media-amazon.com' },
+      { protocol: 'https', hostname: 'i.ytimg.com' },
+    ],
+  },
   turbopack: {
     root: __dirname,
   },
@@ -48,4 +59,5 @@ const nextConfig = {
     ];
   },
 };
+
 export default nextConfig;
