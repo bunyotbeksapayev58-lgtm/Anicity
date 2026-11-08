@@ -109,11 +109,11 @@ export default function HeroBanner({ banners = [], fallbackAnime, user, onWatchT
           {/* Metadata badges */}
           <div className="hero-badges-row">
             <span className="hero-pill-badge quality">4K ULTRA HD</span>
-            {anime?.rating_avg && Number(anime.rating_avg) > 0 && (
+            {Number(anime?.rating_avg) > 0 ? (
               <span className="hero-pill-badge rating">
                 ⭐ {Number(anime.rating_avg).toFixed(1)}
               </span>
-            )}
+            ) : null}
             {anime?.year && (
               <span className="hero-pill-badge year">{anime.year}</span>
             )}

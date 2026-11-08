@@ -159,6 +159,18 @@ export default async function WatchPage({ params }) {
             />
           </div>
 
+          {!user && (
+            <div className="watch-guest-banner" style={{ background: 'rgba(108, 92, 231, 0.1)', border: '1px solid rgba(108, 92, 231, 0.25)', borderRadius: '12px', padding: '12px 16px', margin: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#c4b5fd' }}>
+                <span>💡</span>
+                <span>Siz mehmon rejimida tomosha qilmoqdasiz. Ko‘rish tarixini saqlash va fikr bildirish uchun tizimga kiring.</span>
+              </div>
+              <Link href={`/login?next=/watch/${anime.id}/${ep.number}`} className="btn ghost sm" style={{ padding: '5px 12px', fontSize: '12px' }}>
+                Kirish / Ro‘yxatdan o‘tish
+              </Link>
+            </div>
+          )}
+
           {/* Under-player Meta and Actions */}
           <div className="watch-under-player-box">
             <div className="watch-title-meta">

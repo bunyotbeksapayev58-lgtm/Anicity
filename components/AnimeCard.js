@@ -1,22 +1,33 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function AnimeCard({ anime, priority = false }) {
   if (!anime) return null;
 
+  const [imgError, setImgError] = useState(false);
   const rating = Number(anime.rating_avg);
   const episodesCount = anime.episodes?.length || (Array.isArray(anime.episodes) ? anime.episodes[0]?.count : 0) || 1;
+
+  // Robust genre parser (handles arrays, comma-separated, space-separated)
+  const genresList = Array.isArray(anime.genres)
+    ? anime.genres.flatMap((g) => String(g).split(/[,\s]+/)).map((s) => s.trim()).filter(Boolean)
+    : String(anime.genres || '').split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
 
   return (
     <Link href={`/anime/${anime.id}`} className="anime-card-pro" title={anime.title}>
       <div className="card-poster-wrap">
-        {anime.poster_url ? (
-          <img
+        {anime.poster_url && !imgError ? (
+          <Image
             src={anime.poster_url}
             alt={anime.title}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px"
             className="card-poster-img"
-            loading={priority ? 'eager' : 'lazy'}
+            priority={priority}
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="card-poster-fallback">
@@ -48,7 +59,7 @@ export default function AnimeCard({ anime, priority = false }) {
             </p>
           )}
           <div className="hover-meta-tags">
-            {anime.genres?.slice(0, 2).map((g) => (
+            {genresList.slice(0, 2).map((g) => (
               <span key={g} className="hover-tag">{g}</span>
             ))}
           </div>
