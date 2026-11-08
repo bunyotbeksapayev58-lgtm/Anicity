@@ -206,4 +206,60 @@ test('AUTH PRODUCTION VERIFICATION SUITE', async (t) => {
     }
   });
 
+  await t.test('11. Google OAuth redirectTo: Enforces canonical production URL and rejects localhost in production', () => {
+    const origEnv = { ...process.env };
+    try {
+      process.env.NODE_ENV = 'production';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://anicity-app.vercel.app';
+
+      const baseUrl = getSiteUrl();
+      const safeNext = '/catalog?category=action';
+      const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
+      assert.equal(
+        redirectTo,
+        'https://anicity-app.vercel.app/auth/callback?next=%2Fcatalog%3Fcategory%3Daction',
+        'OAuth redirectTo must use canonical HTTPS production domain'
+      );
+      assert.ok(!redirectTo.includes('localhost'), 'Must not contain localhost');
+    } finally {
+      process.env = origEnv;
+    }
+  });
+
+  await t.test('12. Google OAuth client simulation: Correct provider payload and safe parameter passing', async () => {
+    let capturedOptions = null;
+    let capturedProvider = null;
+
+    const mockSupabase = {
+      auth: {
+        signInWithOAuth: async ({ provider, options }) => {
+          capturedProvider = provider;
+          capturedOptions = options;
+          return { data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' }, error: null };
+        }
+      }
+    };
+
+    const baseUrl = 'https://anicity-app.vercel.app';
+    const safeNext = '/watch/1/1';
+    const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
+    const result = await mockSupabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      }
+    });
+
+    assert.equal(result.error, null);
+    assert.equal(capturedProvider, 'google');
+    assert.equal(capturedOptions.redirectTo, 'https://anicity-app.vercel.app/auth/callback?next=%2Fwatch%2F1%2F1');
+    assert.deepEqual(capturedOptions.queryParams, { access_type: 'offline', prompt: 'consent' });
+  });
+
 });

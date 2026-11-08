@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 export default function GoogleSignInButton({ next, label = 'Google bilan kirish' }) {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,10 @@ export default function GoogleSignInButton({ next, label = 'Google bilan kirish'
       setError(null);
       const supabase = createClient();
       const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
+      // Origin'ni xavfsiz kanonik konfiguratsiyadan aniqlaymiz (localhost leylariga yo'l qo'ymaydi)
+      const baseUrl = getSiteUrl();
+      const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
