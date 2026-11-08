@@ -26,9 +26,7 @@ export default async function WatchPage({ params }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect(`/login?next=/watch/${animeId}/${num}`);
-  }
+  // Guest viewing enabled for free episodes
 
   // Fetch full anime details and episodes (resolves UUID or slug safely without non-existent DB column crash)
   const query = applyAnimeIdentifierFilter(
@@ -49,49 +47,65 @@ export default async function WatchPage({ params }) {
   if (!ep) notFound();
 
   // Server-Side VIP & Access Verification on Watch page
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, suspended_at')
-    .eq('id', user.id)
-    .maybeSingle();
+  const isVipRequired = Boolean(
+    ep.requires_vip === true ||
+    ep.quality === '4K' ||
+    anime.is_vip_only === true
+  );
 
-  const { data: subsRaw } = await supabase
-    .from('user_subscriptions')
-    .select('id, plan_name, status, starts_at, expires_at')
-    .eq('user_id', user.id);
-
-  const access = validatePlaybackAccess({
-    user,
-    profile,
-    episode: {
-      ...ep,
-      requires_vip: ep.requires_vip ?? false,
-      animes: {
-        ...anime,
-        is_vip_only: anime.is_vip_only ?? false,
-      },
-    },
-    subscriptions: subsRaw || [],
-  });
-
-  if (!access.allowed) {
-    if (access.code === 'VIP_REQUIRED') {
-      redirect(`/premium?vip_required=true&next=/watch/${anime.id}/${num}`);
-    }
-    if (access.code === 'USER_SUSPENDED') {
-      redirect('/?suspended=true');
-    }
-    notFound();
+  if (isVipRequired && !user) {
+    redirect('/premium?vip_required=true&next=/watch/' + anime.id + '/' + num);
   }
 
-  // Watch progress map
-  const { data: progress } = await supabase
-    .from('watch_progress')
-    .select('episode_id, position_sec, completed')
-    .eq('anime_id', anime.id);
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, suspended_at')
+      .eq('id', user.id)
+      .maybeSingle();
 
-  const progMap = new Map((progress || []).map((p) => [p.episode_id, p]));
-  const saved = progMap.get(ep.id);
+    const { data: subsRaw } = await supabase
+      .from('user_subscriptions')
+      .select('id, plan_name, status, starts_at, expires_at')
+      .eq('user_id', user.id);
+
+    const access = validatePlaybackAccess({
+      user,
+      profile,
+      episode: {
+        ...ep,
+        requires_vip: ep.requires_vip ?? false,
+        animes: {
+          ...anime,
+          is_vip_only: anime.is_vip_only ?? false,
+        },
+      },
+      subscriptions: subsRaw || [],
+    });
+
+    if (!access.allowed) {
+      if (access.code === 'VIP_REQUIRED') {
+        redirect(`/premium?vip_required=true&next=/watch/${anime.id}/${num}`);
+      }
+      if (access.code === 'USER_SUSPENDED') {
+        redirect('/?suspended=true');
+      }
+      notFound();
+    }
+  }
+
+  // Watch progress map (for logged-in users)
+  let progMap = new Map();
+  let saved = null;
+  if (user) {
+    const { data: progress } = await supabase
+      .from('watch_progress')
+      .select('episode_id, position_sec, completed')
+      .eq('anime_id', anime.id)
+      .eq('user_id', user.id);
+    progMap = new Map((progress || []).map((p) => [p.episode_id, p]));
+    saved = progMap.get(ep.id);
+  }
   const isCompleted = Boolean(saved?.completed);
 
   const prev = episodes.find((e) => e.number === ep.number - 1);
