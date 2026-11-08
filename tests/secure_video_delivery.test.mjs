@@ -5,6 +5,7 @@ import {
   validatePlaybackAccess,
   buildDeliveryConfig,
   verifyDeliveryToken,
+  calculatePlaybackTokenTtl,
 } from '../lib/video/secure-delivery.js';
 
 // ----------------------------------------------------
@@ -237,4 +238,95 @@ test('11. buildDeliveryConfig: Accurately reports Google Drive and Direct MP4 de
   const hlsConfig = buildDeliveryConfig(hlsEp, dummyToken);
   assert.equal(hlsConfig.provider, VIDEO_PROVIDERS.HLS);
   assert.ok(hlsConfig.manifestUrl.includes('token=' + dummyToken));
+});
+
+// ----------------------------------------------------
+// 4. Token TTL Clamping & Subscription Expiry Binding
+// ----------------------------------------------------
+test('12. calculatePlaybackTokenTtl: Token expiry strictly cannot exceed subscription expiry', () => {
+  const nowSec = 1700000000;
+  // User subscription expires in 1,800 seconds (30 minutes)
+  const subExpiresAt = new Date((nowSec + 1800) * 1000).toISOString();
+
+  // User requests standard 7,200s (2 hours) token
+  const clampedTtl = calculatePlaybackTokenTtl({
+    requestedTtl: 7200,
+    subscriptionExpiresAt: subExpiresAt,
+    isPrivileged: false,
+    isVipRequired: true,
+    nowSec,
+  });
+
+  // Clamped TTL must exactly equal 1,800s, NOT 7,200s!
+  assert.equal(clampedTtl, 1800);
+});
+
+test('13. calculatePlaybackTokenTtl: Expired subscription returns 0 TTL and cannot obtain token', () => {
+  const nowSec = 1700000000;
+  // Subscription expired 10 seconds ago
+  const subExpiresAt = new Date((nowSec - 10) * 1000).toISOString();
+
+  const clampedTtl = calculatePlaybackTokenTtl({
+    requestedTtl: 7200,
+    subscriptionExpiresAt: subExpiresAt,
+    isPrivileged: false,
+    isVipRequired: true,
+    nowSec,
+  });
+
+  // Must return 0 to block token generation
+  assert.equal(clampedTtl, 0);
+});
+
+test('14. verifyDeliveryToken: Revoked subscriptions are revalidated during playback', async () => {
+  const secretKey = 'test-signing-key-42';
+  const token = generatePlaybackToken(
+    { userId: 'user-vip-revoked', episodeId: 'ep-vip-10', ttlSeconds: 3600 },
+    secretKey
+  );
+
+  // Simulated live DB revalidation hook returning false (subscription was revoked mid-stream)
+  const revalidateSubMock = async (userId) => {
+    return false; // Revoked!
+  };
+
+  const result = await verifyDeliveryToken({
+    token,
+    expectedUserId: 'user-vip-revoked',
+    expectedEpisodeId: 'ep-vip-10',
+    secretKey,
+    revalidateSubscriptionFn: revalidateSubMock,
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.reason, /Subscription revoked/);
+});
+
+test('15. HLS Delivery Strategy: Manifest authorization is distinguished from chunk segment protection', () => {
+  const dummyToken = 'header.signature';
+  const hlsEp = {
+    id: 'ep-hls-auth',
+    video_url: 'https://cdn.example.com/hls/master.m3u8',
+  };
+
+  const hlsConfig = buildDeliveryConfig(hlsEp, dummyToken);
+
+  // Manifest carries token
+  assert.ok(hlsConfig.manifestUrl.includes('token=' + dummyToken));
+  // Explicitly identifies segment auth strategy vs manifest auth
+  assert.equal(hlsConfig.segmentAuthStrategy, 'signed_cookie_or_edge_rewrite');
+  assert.ok(hlsConfig.limitations.some((lim) => lim.includes('Media segments (.ts/.m4s)')));
+});
+
+test('16. Watch Page Source Inspection: Server-Side VIP Playback Access Verification is wired', async () => {
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+  const watchPageCode = await fs.readFile(path.resolve('app/watch/[animeId]/[num]/page.js'), 'utf8');
+
+  // Verify validatePlaybackAccess is imported and executed
+  assert.ok(watchPageCode.includes("import { validatePlaybackAccess } from '@/lib/video/secure-delivery'"));
+  assert.ok(watchPageCode.includes('validatePlaybackAccess('));
+  assert.ok(watchPageCode.includes("redirect(`/premium?vip_required=true&next="));
+  assert.ok(watchPageCode.includes('requires_vip'));
+  assert.ok(watchPageCode.includes('is_vip_only'));
 });

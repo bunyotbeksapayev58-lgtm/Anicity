@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import Player from '@/components/Player';
 import { toggleEpisodeCompleted } from '@/app/actions/progress';
 import { isDriveUrl } from '@/lib/drive';
+import { validatePlaybackAccess } from '@/lib/video/secure-delivery';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export default async function WatchPage({ params }) {
   // Fetch full anime details and episodes
   const { data: anime } = await supabase
     .from('animes')
-    .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published)')
+    .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, requires_vip, is_published)')
     .eq('id', animeId)
     .single();
 
@@ -41,6 +42,35 @@ export default async function WatchPage({ params }) {
 
   const ep = episodes.find((e) => e.number === Number(num));
   if (!ep) notFound();
+
+  // Server-Side VIP & Access Verification on Watch page
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, suspended_at')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const { data: subsRaw } = await supabase
+    .from('user_subscriptions')
+    .select('id, plan_name, status, starts_at, expires_at')
+    .eq('user_id', user.id);
+
+  const access = validatePlaybackAccess({
+    user,
+    profile,
+    episode: { ...ep, animes: anime },
+    subscriptions: subsRaw || [],
+  });
+
+  if (!access.allowed) {
+    if (access.code === 'VIP_REQUIRED') {
+      redirect(`/premium?vip_required=true&next=/watch/${animeId}/${num}`);
+    }
+    if (access.code === 'USER_SUSPENDED') {
+      redirect('/?suspended=true');
+    }
+    notFound();
+  }
 
   // Watch progress map
   const { data: progress } = await supabase

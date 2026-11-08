@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generatePlaybackToken } from '@/lib/video/provider';
-import { validatePlaybackAccess, buildDeliveryConfig, verifyDeliveryToken } from '@/lib/video/secure-delivery';
+import {
+  validatePlaybackAccess,
+  buildDeliveryConfig,
+  verifyDeliveryToken,
+  calculatePlaybackTokenTtl,
+} from '@/lib/video/secure-delivery';
+import { getCurrentSubscription } from '@/lib/subscriptions';
 
 // POST /api/video/token — Issues an authorized time-bound playback token
 export async function POST(request) {
@@ -64,22 +70,43 @@ export async function POST(request) {
     return NextResponse.json({ error: access.reason, code: access.code }, { status });
   }
 
-  // 5. Generate signed HMAC playback token
+  // 5. Calculate safe clamped TTL (Token expiry strictly cannot outlive subscription)
+  const isVipRequired = Boolean(
+    episode.requires_vip === true ||
+    episode.quality === '4K' ||
+    episode.animes?.is_vip_only === true
+  );
+
+  const ttlSeconds = calculatePlaybackTokenTtl({
+    requestedTtl: 7200,
+    subscriptionExpiresAt: access.subscriptionExpiresAt,
+    isPrivileged: access.isPrivileged,
+    isVipRequired,
+  });
+
+  if (isVipRequired && !access.isPrivileged && ttlSeconds <= 0) {
+    return NextResponse.json({
+      error: 'VIP obuna muddati tugagan (Subscription expired)',
+      code: 'SUBSCRIPTION_EXPIRED',
+    }, { status: 403 });
+  }
+
+  // 6. Generate signed HMAC playback token with clamped TTL
   const token = generatePlaybackToken({
     userId: user.id,
     episodeId: episode.id,
     animeId: episode.anime_id,
     isVip: access.isVip,
-    ttlSeconds: 7200, // Valid for 2 hours
+    ttlSeconds,
   });
 
-  // 6. Build secure delivery config
+  // 7. Build secure delivery config
   const delivery = buildDeliveryConfig(episode, token);
 
   return NextResponse.json({
     token,
     episodeId: episode.id,
-    expiresIn: 7200,
+    expiresIn: ttlSeconds,
     delivery,
   });
 }
@@ -90,15 +117,25 @@ export async function GET(request) {
   const token = url.searchParams.get('token');
   const episodeId = url.searchParams.get('episodeId');
   const userId = url.searchParams.get('userId');
+  const revalidate = url.searchParams.get('revalidate') === 'true';
 
   if (!token) {
     return NextResponse.json({ valid: false, reason: 'Token kiritilmagan' }, { status: 400 });
   }
 
-  const verification = verifyDeliveryToken({
+  const supabase = await createClient();
+
+  const verification = await verifyDeliveryToken({
     token,
     expectedUserId: userId,
     expectedEpisodeId: episodeId,
+    revalidateSubscriptionFn: revalidate ? async (uid) => {
+      const { data: subs } = await supabase
+        .from('user_subscriptions')
+        .select('id, status, starts_at, expires_at')
+        .eq('user_id', uid);
+      return Boolean(getCurrentSubscription(subs || []));
+    } : null,
   });
 
   if (!verification.valid) {
