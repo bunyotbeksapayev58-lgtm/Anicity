@@ -3,9 +3,9 @@ const BLOCKED_HOSTS = new Set([
   'yozora-app.vercel.app',
   'anicity-aniverse3.vercel.app',
   'anicity-git-main-aniverse3.vercel.app',
-  'lngeosburovsxotywbfw.supabase.co',
+  'production-project.supabase.co',
 ]);
-const PRODUCTION_PROJECT_REF = 'lngeosburovsxotywbfw';
+const PRODUCTION_PROJECT_REF = 'production-project';
 
 function parseAllowlist(env) {
   const hosts = (env.ANICITY_LIVE_TEST_ALLOWED_HOSTS || '')

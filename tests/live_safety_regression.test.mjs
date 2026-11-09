@@ -37,8 +37,8 @@ for (const productionHost of [
 }
 assert.throws(() => requireLiveTestConfig({}, {
   ...base,
-  TEST_SUPABASE_URL: 'https://lngeosburovsxotywbfw.supabase.co',
-  ANICITY_LIVE_TEST_ALLOWED_HOSTS: `${projectRef}.supabase.co,lngeosburovsxotywbfw.supabase.co`,
+  TEST_SUPABASE_URL: 'https://production-project.supabase.co',
+  ANICITY_LIVE_TEST_ALLOWED_HOSTS: `${projectRef}.supabase.co,production-project.supabase.co`,
 }), /cannot be allowlisted|allowlisted/);
 assert.throws(() => requireLiveTestConfig({}, {
   ...base,

@@ -47,9 +47,9 @@ test('isSafeAvatarUrl rejects external domains, query parameters and credentials
 
 test('getOwnedAvatarPath extracts correct relative storage path and rejects forged URLs', () => {
   const userId = 'user-123';
-  const validUrl = `https://lngeosburovsxotywbfw.supabase.co/storage/v1/object/public/profile-avatars/${userId}/avatar_abc.png`;
+  const validUrl = `https://example-project.supabase.co/storage/v1/object/public/profile-avatars/${userId}/avatar_abc.png`;
   assert.equal(getOwnedAvatarPath(validUrl, userId), `${userId}/avatar_abc.png`);
-  assert.equal(getOwnedAvatarPath(`https://lngeosburovsxotywbfw.supabase.co/storage/v1/object/public/profile-avatars/other-user/avatar.png`, userId), null);
+  assert.equal(getOwnedAvatarPath(`https://example-project.supabase.co/storage/v1/object/public/profile-avatars/other-user/avatar.png`, userId), null);
   assert.equal(getOwnedAvatarPath('javascript:alert(1)', userId), null);
 });
 

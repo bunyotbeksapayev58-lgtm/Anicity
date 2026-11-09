@@ -1,130 +1,91 @@
-# AniCity — Database Architecture & SQL Schema Reference
+# AniCity — Ma’lumotlar Bazasi va Sxemalar
 
-## 1. Overview & Connection Topology
-
-AniCity uses a managed **PostgreSQL 15** cluster hosted on **Supabase**. All database tables enforce PostgreSQL Row Level Security (RLS). Privileged transactions occur through `SECURITY DEFINER` stored procedures located in the `public` schema with fixed `search_path` controls (`SET search_path = pg_catalog, public, pg_temp`).
+AniCity ma’lumotlar bazasi **Supabase Managed PostgreSQL** asosida ishlaydi. Tizim qat’iy relyatsion qoidalar, xavfsiz RLS (Row Level Security) siyosatlari va avtomatlashtirilgan triggerlar bilan himoyalangan.
 
 ---
 
-## 2. Migration Sequence
+## 1. Migratsiyalar Ketma-ketligi (`supabase/migrations/`)
 
-The database schema is constructed via an immutable, sequential migration pipeline under `supabase/migrations/`:
+Bazadagi barcha jadvallar, indekslar va funksiyalar 19 ta tartibli migratsiya orqali boshqariladi:
 
-| Migration File | Description |
+| Migratsiya | Tavsifi |
 | :--- | :--- |
-| `001_core_schema.sql` | Core schema: `profiles`, `animes`, `seasons`, `episodes`, `watch_progress`, `favorites`, `comments`, `ratings`. |
-| `002_indexes.sql` | B-tree and GIN indexes for query optimization. |
-| `003_functions_triggers.sql` | Auto-updating timestamp triggers and profile creation hooks. |
-| `004_grants.sql` | Role permissions (`anon`, `authenticated`, `service_role`). |
-| `005_rls_policies.sql` | Row Level Security policies for all core entities. |
-| `006_storage.sql` | Storage bucket configurations and access policies for avatars/posters. |
-| `007_trailers.sql` | Trailers and video clips schema. |
-| `008_admin_decoupled_episodes.sql` | Decoupled anime creation support (animes without episodes initially). |
-| `009_subscriptions_system.sql` | VIP subscription plans, transactions, user subscriptions, and audit logs. |
-| `010_video_banners.sql` | Dynamic video banners and featured showcase carousel tables. |
-| `011_schema_security_repairs.sql` | Hardening of RPC security definer signatures. |
-| `011b_admin_anime_rpcs.sql` | Bridge RPCs: `admin_create_anime_with_episodes` and `admin_replace_anime_episodes`. |
-| `012_admin_pagination_atomic_updates.sql` | Pagination RPC `admin_list_users` and atomic subscription grants. |
-| `013_profiles_assistant_admins.sql` | Assistant admin role definitions, permissions table, and audit trail. |
-| `014_assistant_permission_boundaries.sql` | Strict isolation of assistant permissions from owner capabilities. |
-| `015_assistant_security_audit_fixes.sql` | Hardened `search_path = pg_catalog, public, pg_temp` across all administrative RPCs. |
-| `016_episode_replacement_identity.sql` | Season-qualified episode replacement logic preserving published identity. |
-| `017_distributed_rate_limiting.sql` | Distributed serverless rate-limiting table and atomic `check_rate_limit` RPC. |
+| `001_core_schema.sql` | Asosiy jadvallar: `profiles`, `animes`, `seasons`, `episodes`, `subtitles`, `ratings`, `favorites`, `watch_history`. |
+| `002_indexes.sql` | Tezkor qidiruv va filtrlash uchun indekslar (`gin_trgm`, `btree`). |
+| `003_functions_triggers.sql` | Avtomatik `updated_at`, reyting hisoblash va audit triggerlari. |
+| `004_storage_buckets.sql` | Avatarlar va bannerlar uchun Supabase Storage chelaklari. |
+| `005_rls_policies.sql` | Ommaviy va avtorizatsiyalangan foydalanuvchilar uchun RLS siyosatlari. |
+| `006_demo_seed.sql` | Dastlabki sinov ma’lumotlari (namunaviy animelar). |
+| `007_trailers.sql` | Animelarga YouTube treylerlarini biriktirish imkoniyati. |
+| `008_admin_decoupled_episodes.sql` | Animeni epizodlarsiz ham yaratish va saqlash erkinligi. |
+| `009_subscriptions_system.sql` | VIP tariflar (`subscription_plans`), tranzaksiyalar (`subscription_transactions`) va audit loglari. |
+| `010_video_banners.sql` | Bosh sahifa hero bo‘limida fon videosini o‘ynatish mexanizmi. |
+| `011_schema_security_repairs.sql` | Xavfsizlik tuzatishlari va cheklovlar. |
+| `012_profile_usernames_and_avatars.sql` | Unikal username va avatar saqlash qoidalari. |
+| `013_profiles_assistant_admins.sql` | Yordamchi adminlar (moderatorlar) uchun alohida ruxsatlar. |
+| `014_assistant_permissions.sql` | Moderatorlarning huquqlarini batafsil sozlash jadvali. |
+| `015_assistant_security_audit_fixes.sql` | Ruxsatnomalar ustidan qo‘shimcha nazorat funksiyalari. |
+| `016_episode_replacement_identity.sql` | Epizodlarni almashtirishda unikal indekslarni saqlash. |
+| `017_distributed_rate_limiting.sql` | Vercel Serverless uchun umumiy atomik rate limit jadvali (`rate_limits`) va `check_rate_limit` RPC. |
+| `018_vip_access_columns.sql` | Baza darajasida VIP himoyasi: `episodes.requires_vip` va `animes.is_vip_only` ustunlari. |
 
 ---
 
-## 3. Core Entity-Relationship Diagram
-
-```mermaid
-erDiagram
-    PROFILES ||--o{ FAVORITES : saves
-    PROFILES ||--o{ WATCH_PROGRESS : tracks
-    PROFILES ||--o{ USER_SUBSCRIPTIONS : holds
-    PROFILES ||--o{ SUBSCRIPTION_TRANSACTIONS : pays
-    ANIMES ||--|{ SEASONS : contains
-    SEASONS ||--|{ EPISODES : contains
-    ANIMES ||--o{ TRAILERS : features
-    SUBSCRIPTION_PLANS ||--o{ USER_SUBSCRIPTIONS : governs
-    SUBSCRIPTION_PLANS ||--o{ SUBSCRIPTION_TRANSACTIONS : prices
-    RATE_LIMITS ||--o{ PROFILES : tracks_quota
-```
-
----
-
-## 4. Key Table Schemas
+## 2. Asosiy Jadvallar
 
 ### `public.animes`
 - `id` (UUID, Primary Key)
-- `title` (TEXT, 1–200 chars)
-- `alt_title` (TEXT)
-- `description` (TEXT)
-- `year` (INT, 1960–2100)
-- `type` (TEXT: 'tv', 'movie', 'ova', 'ona', 'special')
-- `status` (TEXT: 'Tugallangan', 'Davom etmoqda')
-- `genres` (TEXT[])
-- `poster_url` (TEXT)
-- `banner_url` (TEXT)
-- `is_published` (BOOLEAN, default true)
-- `rating_avg` (NUMERIC(4,2), default 0)
-- `view_count` (BIGINT, default 0)
+- `title` (TEXT) — animening nomi
+- `alt_title` (TEXT) — ikkinchi nomi
+- `description` (TEXT) — tavsifi
+- `year` (INT) — chiqarilgan yili
+- `status` (TEXT) — "Tugallangan" yoki "Davom etmoqda"
+- `genres` (TEXT[]) — janrlar massivi
+- `poster_url`, `banner_url` (TEXT)
+- `is_vip_only` (BOOLEAN) — faqat VIP a’zolar uchun ekanligi
 
 ### `public.episodes`
 - `id` (UUID, Primary Key)
-- `anime_id` (UUID, FK -> `animes.id` ON DELETE CASCADE)
-- `season_id` (UUID, FK -> `seasons.id` ON DELETE SET NULL)
-- `number` (INT, positive)
-- `title` (TEXT)
-- `video_url` (TEXT, HTTP/HTTPS URL)
-- `thumbnail_url` (TEXT)
-- `is_published` (BOOLEAN, default true)
-- `UNIQUE (anime_id, number)`
+- `anime_id` (UUID, FK -> animes.id)
+- `season_number` (INT) — fasl raqami (default: 1)
+- `number` (INT) — qism raqami
+- `title` (TEXT) — qism nomi
+- `video_url` (TEXT) — video manzili (Google Drive, HLS yoki MP4)
+- `quality` (TEXT) — masalan: '1080p', '4K'
+- `requires_vip` (BOOLEAN) — ushbu qismni ko‘rish uchun VIP kerakligi
+- `is_published` (BOOLEAN) — qism ommaga ko‘rinishi
+
+### `public.subscription_plans`
+- `id` (UUID, Primary Key)
+- `name` (TEXT) — "1 Oylik VIP", "3 Oylik VIP", "1 Yillik VIP"
+- `slug` (TEXT)
+- `price_uzs` (BIGINT) — so‘mdagi narxi (masalan: 25000)
+- `duration_days` (INT) — kunlar soni (30, 90, 365)
+- `benefits` (TEXT[]) — imtiyozlar ro‘yxati
+- `is_active` (BOOLEAN) — sotuvda ochiqligi
 
 ### `public.user_subscriptions`
 - `id` (UUID, Primary Key)
-- `user_id` (UUID, FK -> `profiles.id` ON DELETE CASCADE)
-- `plan_id` (UUID, FK -> `subscription_plans.id` ON DELETE SET NULL)
+- `user_id` (UUID, FK -> profiles.id)
 - `plan_name` (TEXT)
-- `status` (TEXT: 'active', 'expired', 'cancelled', 'pending')
+- `status` (TEXT) — 'active', 'expired', 'cancelled'
 - `starts_at` (TIMESTAMPTZ)
-- `expires_at` (TIMESTAMPTZ)
-- `grant_type` (TEXT: 'manual_admin', 'online_payment', 'promo_code', 'system')
+- `expires_at` (TIMESTAMPTZ) — obuna tugash sanasi
 
 ### `public.subscription_transactions`
 - `id` (UUID, Primary Key)
-- `transaction_id` (TEXT, Unique)
-- `user_id` (UUID, FK -> `profiles.id` ON DELETE CASCADE)
-- `plan_id` (UUID, FK -> `subscription_plans.id`)
+- `transaction_id` (TEXT, UNIQUE) — provayder tranzaksiya ID si
+- `user_id` (UUID)
+- `plan_id` (UUID)
 - `amount_uzs` (BIGINT)
-- `currency` (TEXT, default 'UZS')
-- `provider` (TEXT: 'payme', 'click', 'uzum', 'manual', 'other')
-- `status` (TEXT: 'pending', 'completed', 'failed', 'cancelled')
-- `metadata` (JSONB)
-
-### `public.rate_limits` (Added in 017)
-- `id` (BIGSERIAL, Primary Key)
-- `key` (TEXT, UNIQUE, Not Null) - e.g. `auth:login:1.2.3.4`
-- `points` (INT, Default 0) - Accumulated request count in window
-- `expires_at` (TIMESTAMPTZ, Not Null) - Sliding window expiration
-- `created_at` (TIMESTAMPTZ, Default now())
-- `updated_at` (TIMESTAMPTZ, Default now())
+- `provider` (TEXT) — 'click', 'payme', 'manual'
+- `status` (TEXT) — 'pending', 'completed', 'failed', 'cancelled'
 
 ---
 
-## 5. Security & Index Optimization
+## 3. Xavfsizlik (Row Level Security — RLS)
 
-### Critical Indexes
-- `idx_user_subs_user_id` ON `user_subscriptions(user_id)`
-- `idx_user_subs_status` ON `user_subscriptions(status)`
-- `idx_user_subs_expires_at` ON `user_subscriptions(expires_at)`
-- `idx_sub_tx_user_id` ON `subscription_transactions(user_id)`
-- `idx_sub_tx_status` ON `subscription_transactions(status)`
-- `idx_sub_audit_user_id` ON `subscription_audit_logs(user_id)`
-- `idx_rate_limits_expires_at` ON `rate_limits(expires_at)`
-
-### Hardened RPC Configuration
-All admin RPCs are created with:
-```sql
-ALTER FUNCTION public.admin_create_anime_with_episodes(jsonb, jsonb)
-  SET search_path = pg_catalog, public, pg_temp;
-```
-This protects against search_path hijacking where malicious users might create colliding functions or tables in personal schemas.
+- Har bir jadvalda RLS faollashtirilgan (`ENABLE ROW LEVEL SECURITY`).
+- Oddiy foydalanuvchilar faqat o‘zlariga tegishli profil, ko‘rishlar tarixi va obunalarini o‘qiy oladi.
+- Ommaviy API marshrutlarida (`/api/animes/[id]`) epizodlarning to‘g‘ridan-to‘g‘ri `video_url` manzili berilmaydi, faqat imzolangan video token orqali ruxsat etiladi.
+- Administratorlik huquqlari server-side `is_admin()` funksiyasi orqali tekshiriladi.
