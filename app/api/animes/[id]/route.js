@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
   const { supabase } = await getPublicContext();
 
   const query = applyAnimeIdentifierFilter(
-    supabase.from('animes').select('*, episodes(id, number, title, video_url)'),
+    supabase.from('animes').select('*, episodes(id, number, title, quality, requires_vip, is_published)'),
     id
   );
   const { data, error } = await query.maybeSingle();

@@ -28,8 +28,8 @@ test('1. updateOwnCredentials Source Inspection & Security Controls', () => {
 
   // Must validate password length (min 6, max 72)
   assert.ok(
-    authActions.includes('newPassword.length < 6'),
-    'Must enforce minimum 6 characters for passwords'
+    authActions.includes('newPassword.length < 8'),
+    'Must enforce minimum 8 characters for passwords'
   );
 
   // Must validate username pattern

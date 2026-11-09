@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSiteUrl } from '@/lib/siteUrl';
+import { logger } from '@/lib/logger';
 
 function getSafeNext(next, fallback = '/') {
   if (!next || typeof next !== 'string') return fallback;
@@ -24,7 +25,7 @@ export async function GET(request) {
 
   // Supabase xato bilan qaytargan bo'lsa (masalan havola muddati tugagan yoki OAuth bekor qilingan)
   if (errorParam) {
-    console.error('[Auth Callback] Provider error:', errorParam);
+    logger.error('[Auth Callback] Provider error', { error: errorParam });
     const isOAuth = url.searchParams.get('error') === 'access_denied' ||
       String(errorParam).toLowerCase().includes('oauth') ||
       String(errorParam).toLowerCase().includes('denied');
@@ -43,7 +44,7 @@ export async function GET(request) {
     if (!error) {
       return NextResponse.redirect(new URL(safeNext, origin));
     }
-    console.error('[Auth Callback] exchangeCodeForSession error:', error.message);
+    logger.error('[Auth Callback] exchangeCodeForSession error', { error: error.message });
   }
 
   // 2. Token hash OTP flow (Email verification / recovery token hash)
@@ -55,7 +56,7 @@ export async function GET(request) {
     if (!error) {
       return NextResponse.redirect(new URL(safeNext, origin));
     }
-    console.error('[Auth Callback] verifyOtp error:', error.message);
+    logger.error('[Auth Callback] verifyOtp error', { error: error.message });
   }
 
   // 3. Agar foydalanuvchi allaqachon tizimga kirgan bo'lsa (masalan brauzerda avvaldan faol sessiya bor)

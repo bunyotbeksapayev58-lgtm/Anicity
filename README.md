@@ -24,7 +24,7 @@
    - Mobil moslashuvchan pleyer (360px, 375px, 390px, 430px) va fullscreen/teatr rejimlari.
 
 3. **Monetizatsiya va VIP Obuna:**
-   - O‘zbekiston milliy to‘lov tizimlari: **Click.uz** (Prepare/Complete 2 bosqichli MD5 protokoli) va **Payme.uz** (JSON-RPC 2.0 protokoli).
+   - O‘zbekiston milliy to‘lov tizimlari: **Click.uz** (Prepare/Complete 2 bosqichli MD5 protokoli, timing-safe verification) va **Payme.uz** (JSON-RPC 2.0 protokoli, GetStatement, avtomatik obuna bekor qilish). Online checkout marshruti (`/api/payments/checkout`) va Premium sahifasida interaktiv to‘lov tugmalari to‘liq ulangan.
    - Avtomatlashtirilgan VIP faollashtirish, obuna muddatini hisoblash va audit jurnali (`subscription_audit_logs`).
    - VIP qismlar va 4K sifat uchun xavfsiz avtomatik paywall.
 
@@ -35,7 +35,7 @@
    - Yordamchi adminlar uchun cheklangan huquqlar tizimi (`assistant_permissions`).
 
 5. **Xavfsizlik va Ma’lumotlar Bazasi:**
-   - Supabase PostgreSQL: 18 ta ketma-ket tartibli migratsiya (001–017).
+   - Supabase PostgreSQL: 19 ta ketma-ket tartibli migratsiya (001–018).
    - Qator darajasidagi to‘liq xavfsizlik (Row Level Security — RLS).
    - Vercel Serverless uchun taqsimlangan atomik rate limiting (`rate_limits` jadvali va `check_rate_limit` RPC).
    - Kriptografik xavfsizlik: Xaridor paketida hech qanday maxfiy kalitlar (secrets) qoldirilmagan.

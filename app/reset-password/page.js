@@ -13,8 +13,8 @@ export default function ResetPage() {
         <p className="sub">Yangi parolni kiriting</p>
         <ActionForm action={resetPassword} submitLabel="Parolni saqlash"
           fields={[
-            { name: 'password', label: 'Yangi parol', type: 'password', autoComplete: 'new-password', minLength: 6 },
-            { name: 'confirm', label: 'Parolni tasdiqlang', type: 'password', autoComplete: 'new-password', minLength: 6 },
+            { name: 'password', label: 'Yangi parol', type: 'password', autoComplete: 'new-password', minLength: 8 },
+            { name: 'confirm', label: 'Parolni tasdiqlang', type: 'password', autoComplete: 'new-password', minLength: 8 },
           ]} />
       </div>
     </section>

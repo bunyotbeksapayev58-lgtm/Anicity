@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getSubscriptionSummary } from '@/lib/subscriptions';
+import PlanCheckoutButtons from '@/components/PlanCheckoutButtons';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,20 +159,7 @@ export default async function PremiumPage() {
               )}
 
               <div className="plan-action">
-                {user ? (
-                  <a
-                    href={`https://t.me/anicity_admin?text=${encodeURIComponent(`Salom, men Anicity platformasida “${plan.name}” (${Number(plan.price_uzs).toLocaleString()} UZS) obunasini faollashtirmoqchiman. Mening username: @${userProfile?.username || user.email}`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`btn-plan-select ${plan.is_popular ? 'primary-grad' : ''}`}
-                  >
-                    👑 {plan.name}ni Faollashtirish
-                  </a>
-                ) : (
-                  <Link href="/login?next=/premium" className={`btn-plan-select ${plan.is_popular ? 'primary-grad' : ''}`}>
-                    Kirish va Obuna Bo‘lish
-                  </Link>
-                )}
+                <PlanCheckoutButtons plan={plan} user={user} userProfile={userProfile} />
               </div>
             </div>
           ))}

@@ -64,7 +64,7 @@ export async function register(prevState, formData) {
   if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
     return { error: 'Username 3–20 ta harf, raqam yoki _ dan iborat bo‘lsin' };
   }
-  if (password.length < 6) return { error: 'Parol kamida 6 ta belgi bo‘lsin' };
+  if (password.length < 8) return { error: 'Parol kamida 8 ta belgi bo‘lsin' };
 
   // Username band emasligini oldindan tekshiramiz (agar admin client mavjud bo'lsa)
   const admin = createAdminClient();
@@ -128,7 +128,7 @@ export async function resetPassword(prevState, formData) {
 
   const password = String(formData.get('password') || '');
   const confirm = String(formData.get('confirm') || '');
-  if (password.length < 6) return { error: 'Parol kamida 6 ta belgi bo‘lsin' };
+  if (password.length < 8) return { error: 'Parol kamida 8 ta belgi bo‘lsin' };
   if (password !== confirm) return { error: 'Parollar bir xil emas' };
 
   const { error } = await supabase.auth.updateUser({ password });
@@ -186,8 +186,8 @@ export async function updateOwnCredentials(prevState, formData) {
 
   // 2. Parolni yangilash
   if (newPassword || confirmPassword) {
-    if (newPassword.length < 6) {
-      return { error: 'Yangi parol kamida 6 ta belgidan iborat bo‘lishi kerak' };
+    if (newPassword.length < 8) {
+      return { error: 'Yangi parol kamida 8 ta belgidan iborat bo‘lishi kerak' };
     }
     if (newPassword.length > 72) {
       return { error: 'Parol 72 belgidan oshmasligi kerak' };

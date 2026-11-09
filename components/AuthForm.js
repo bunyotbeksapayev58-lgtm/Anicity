@@ -29,8 +29,8 @@ export default function AuthForm({ action, mode, next }) {
     } else if (name === 'password') {
       if (!value) {
         err = 'Parol kiritish shart';
-      } else if (value.length < 6) {
-        err = 'Parol kamida 6 ta belgidan iborat bo‘lishi lozim';
+      } else if (value.length < 8) {
+        err = 'Parol kamida 8 ta belgidan iborat bo‘lishi lozim';
       }
     }
 
@@ -111,7 +111,7 @@ export default function AuthForm({ action, mode, next }) {
             name="password"
             type={showPassword ? 'text' : 'password'}
             required
-            minLength={6}
+            minLength={8}
             autoComplete={isRegister ? 'new-password' : 'current-password'}
             onBlur={handleBlur}
             className={touched.password && clientErrors.password ? 'input-error' : ''}

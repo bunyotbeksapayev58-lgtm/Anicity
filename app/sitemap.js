@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 export const revalidate = 3600; // Har 1 soatda kesh yangilanadi
 
@@ -52,7 +53,7 @@ export default async function sitemap() {
         }
       }
     } catch (err) {
-      console.warn('Sitemap anime fetch warning:', err);
+      logger.warn('Sitemap anime fetch warning', { error: err?.message || String(err) });
     }
   }
 
