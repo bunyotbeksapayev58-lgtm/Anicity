@@ -35,3 +35,4 @@ backups/
 
 .vercel
 stitch_extracted/
+.env*
