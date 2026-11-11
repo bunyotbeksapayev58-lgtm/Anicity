@@ -5,13 +5,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const cspHeader = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.paycom.uz https://my.click.uz",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.paycom.uz https://my.click.uz https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://*.supabase.co https://drive.google.com https://lh3.googleusercontent.com https://images.unsplash.com https://cdn.myanimelist.net https://s4.anilist.co https://m.media-amazon.com https://i.ytimg.com",
+  "img-src 'self' data: blob: https://*.supabase.co https://drive.google.com https://lh3.googleusercontent.com https://images.unsplash.com https://cdn.myanimelist.net https://s4.anilist.co https://m.media-amazon.com https://i.ytimg.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.google.com https://googleads.g.doubleclick.net",
   "media-src 'self' blob: https://*.supabase.co https://drive.google.com https://*.googleusercontent.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://checkout.paycom.uz https://my.click.uz",
-  "frame-src 'self' https://drive.google.com https://www.youtube.com https://checkout.paycom.uz https://my.click.uz",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://checkout.paycom.uz https://my.click.uz https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net",
+  "frame-src 'self' https://drive.google.com https://www.youtube.com https://checkout.paycom.uz https://my.click.uz https://www.googletagmanager.com",
   "frame-ancestors 'self'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -48,6 +48,10 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: cspHeader,
+          },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
           },
           {
             key: 'X-Content-Type-Options',

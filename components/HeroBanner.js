@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { preload } from 'react-dom';
 
 export default function HeroBanner({ banners = [], fallbackAnime, user, onWatchTrailer }) {
   const [index, setIndex] = useState(0);
@@ -19,6 +20,11 @@ export default function HeroBanner({ banners = [], fallbackAnime, user, onWatchT
     anime_id: fallbackAnime.id,
     anime: fallbackAnime
   }] : [];
+
+  const firstBg = slides[0]?.image_url || slides[0]?.anime?.banner_url || slides[0]?.anime?.poster_url;
+  if (firstBg) {
+    preload(firstBg, { as: 'image', fetchPriority: 'high' });
+  }
 
   const total = slides.length;
 

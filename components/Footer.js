@@ -72,6 +72,7 @@ export default function Footer() {
               <li><Link href="/dmca">DMCA & Mualliflik Huquqi</Link></li>
               <li><Link href="/terms">Foydalanish Shartlari</Link></li>
               <li><Link href="/privacy">Maxfiylik Siyosati</Link></li>
+              <li><Link href="/cookies">Cookie Siyosati</Link></li>
               <li><a href="https://t.me/anicity_admin" target="_blank" rel="noreferrer">Telegram Yordam (@anicity_admin)</a></li>
               <li><span className="footer-badge-safe">🛡️ 100% Xavfsiz Platforma</span></li>
             </ul>
