@@ -36,6 +36,9 @@ export default async function HomePage({ searchParams }) {
     catalogQuery = catalogQuery.order('created_at', { ascending: false });
   }
 
+  // Sahifalash & Chegara (Mobile va 1000+ foydalanuvchi uchun xotira optimizatsiyasi)
+  catalogQuery = catalogQuery.limit(24);
+
   const bannersPromise = supabase
     .from('banners')
     .select('id, title, subtitle, image_url, video_url, link_url, anime_id, sort_order, anime:animes(id, title, description, poster_url, banner_url, genres, rating_avg, year, status, studio)')

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
+import { useReportWebVitals } from 'next/web-vitals';
 
 export default function GoogleAnalytics() {
   const gaId = process.env.NEXT_PUBLIC_GA_ID;
@@ -28,6 +29,17 @@ export default function GoogleAnalytics() {
     window.addEventListener('cookie_consent_updated', handleConsent);
     return () => window.removeEventListener('cookie_consent_updated', handleConsent);
   }, []);
+
+  // Real User Monitoring (RUM): Core Web Vitals to GA4
+  useReportWebVitals((metric) => {
+    if (typeof window !== 'undefined' && window.gtag && allowed && gaId) {
+      window.gtag('event', metric.name, {
+        value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+        event_label: metric.id,
+        non_interaction: true,
+      });
+    }
+  });
 
   // If user explicitly rejected analytics or no IDs provided, render nothing
   if (!allowed || (!gaId && !gtmId)) {

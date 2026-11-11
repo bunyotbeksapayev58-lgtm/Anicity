@@ -23,7 +23,9 @@ export async function GET(request) {
 
   const { data, error, count } = await query;
   if (error) return fail(error.message, 500);
-  return json({ data, count, limit, offset });
+  return json({ data, count, limit, offset }, 200, {
+    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+  });
 }
 
 // POST /api/animes (admin)

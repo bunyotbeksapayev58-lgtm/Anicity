@@ -18,7 +18,9 @@ export async function GET(request, { params }) {
   if (Array.isArray(data.episodes)) {
     data.episodes.sort((x, y) => x.number - y.number);
   }
-  return json(data);
+  return json(data, 200, {
+    'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+  });
 }
 
 // PATCH /api/animes/:id (admin) — maydonlar va ixtiyoriy episodes ro'yxati
