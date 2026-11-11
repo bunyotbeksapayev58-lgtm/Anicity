@@ -44,16 +44,40 @@ export default async function AnimeDetailsPage({ params }) {
 
   const episodes = [...(anime.episodes || [])].sort((a, b) => a.number - b.number);
 
-  // Check Favorites
-  const fav = user
-    ? (await supabase.from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', anime.id).maybeSingle()).data
-    : null;
-  const isFav = !!fav;
+  // Fetch Trailers, Related, and User state in parallel to prevent waterfall
+  const favPromise = user
+    ? supabase.from('favorites').select('anime_id').eq('user_id', user.id).eq('anime_id', anime.id).maybeSingle()
+    : Promise.resolve({ data: null });
 
-  // Check Watch Progress
-  const { data: progress } = user
-    ? await supabase.from('watch_progress').select('episode_id, completed, position_sec, duration_sec').eq('anime_id', anime.id)
-    : { data: [] };
+  const progressPromise = user
+    ? supabase.from('watch_progress').select('episode_id, completed, position_sec, duration_sec').eq('anime_id', anime.id)
+    : Promise.resolve({ data: [] });
+
+  const trailersPromise = supabase
+    .from('trailers')
+    .select('id, anime_id, title, description, video_url, thumbnail_url, duration_text, clip_type')
+    .eq('anime_id', anime.id)
+    .eq('is_active', true);
+
+  const relatedPromise = supabase
+    .from('animes')
+    .select('id, title, year, poster_url, rating_avg, status, genres, episodes(id, number, title)')
+    .neq('id', anime.id)
+    .limit(8);
+
+  const [
+    favRes,
+    { data: progress },
+    { data: trailers },
+    { data: relatedAnimes },
+  ] = await Promise.all([
+    favPromise,
+    progressPromise,
+    trailersPromise,
+    relatedPromise,
+  ]);
+
+  const isFav = !!favRes?.data;
   const progMap = new Map((progress || []).map((p) => [p.episode_id, p]));
 
   // Resume episode
@@ -61,20 +85,6 @@ export default async function AnimeDetailsPage({ params }) {
     ? episodes.find((e) => progMap.get(e.id) && !progMap.get(e.id).completed)
     : null;
   const targetEpisode = resume ?? episodes[0];
-
-  // Fetch Trailer for this anime
-  const { data: trailers } = await supabase
-    .from('trailers')
-    .select('id, anime_id, title, description, video_url, thumbnail_url, duration_text, clip_type')
-    .eq('anime_id', anime.id)
-    .eq('is_active', true);
-
-  // Fetch Recommended / Similar Animes
-  const { data: relatedAnimes } = await supabase
-    .from('animes')
-    .select('id, title, year, poster_url, rating_avg, status, genres, episodes(id, number, title)')
-    .neq('id', anime.id)
-    .limit(8);
 
   const backdropImage = anime.banner_url || anime.poster_url;
   const watchUrl = user

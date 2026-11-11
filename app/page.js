@@ -14,36 +14,8 @@ const escapeLike = (s) => s.replace(/[\\%_]/g, '\\$&');
 export default async function HomePage({ searchParams }) {
   const { q = '', g = '', sort = '' } = (await searchParams) || {};
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  // 1. Fetch Active Hero Banners with joined anime details
-  const { data: bannersRaw } = await supabase
-    .from('banners')
-    .select('id, title, subtitle, image_url, video_url, link_url, anime_id, sort_order, anime:animes(id, title, description, poster_url, banner_url, genres, rating_avg, year, status, studio)')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-
-  // 2. Fetch Active Trailers & Clips
-  const { data: trailersRaw } = await supabase
-    .from('trailers')
-    .select('id, anime_id, title, description, video_url, thumbnail_url, duration_text, clip_type, sort_order, anime:animes(id, title, poster_url)')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-
-  // 3. User's "Continue Watching" progress
-  let continueList = [];
-  if (user) {
-    const { data: continueRaw } = await supabase
-      .from('watch_progress')
-      .select('position_sec, duration_sec, updated_at, episodes(number, title, anime_id, animes(id, title, poster_url))')
-      .eq('user_id', user.id)
-      .eq('completed', false)
-      .order('updated_at', { ascending: false })
-      .limit(10);
-    continueList = (continueRaw || []).filter((r) => r.episodes?.animes);
-  }
-
-  // 4. Fetch All Animes for catalog & sections
+  // 1. Prepare parallel queries to eliminate waterfall latency
   let catalogQuery = supabase
     .from('animes')
     .select('id, title, alt_title, description, year, status, genres, studio, poster_url, banner_url, rating_avg, view_count, created_at, release_day, fandub_team, episodes(id, number, title)')
@@ -64,13 +36,48 @@ export default async function HomePage({ searchParams }) {
     catalogQuery = catalogQuery.order('created_at', { ascending: false });
   }
 
-  const { data: catalogAnimes } = await catalogQuery;
+  const bannersPromise = supabase
+    .from('banners')
+    .select('id, title, subtitle, image_url, video_url, link_url, anime_id, sort_order, anime:animes(id, title, description, poster_url, banner_url, genres, rating_avg, year, status, studio)')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
 
-  // 5. Get all available genres
-  const { data: genreRows } = await supabase.from('animes').select('genres').eq('is_published', true);
-  const allGenres = [...new Set((genreRows || []).flatMap((a) => a.genres || []))].sort();
+  const trailersPromise = supabase
+    .from('trailers')
+    .select('id, anime_id, title, description, video_url, thumbnail_url, duration_text, clip_type, sort_order, anime:animes(id, title, poster_url)')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
 
-  // 6. Section Categorizations
+  // 2. Execute user auth, banners, trailers, and catalog query in parallel
+  const [
+    { data: { user } = {} },
+    { data: bannersRaw },
+    { data: trailersRaw },
+    { data: catalogAnimes },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    bannersPromise,
+    trailersPromise,
+    catalogQuery,
+  ]);
+
+  // 3. User's "Continue Watching" progress (executed only if user is logged in)
+  let continueList = [];
+  if (user) {
+    const { data: continueRaw } = await supabase
+      .from('watch_progress')
+      .select('position_sec, duration_sec, updated_at, episodes(number, title, anime_id, animes(id, title, poster_url))')
+      .eq('user_id', user.id)
+      .eq('completed', false)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+    continueList = (continueRaw || []).filter((r) => r.episodes?.animes);
+  }
+
+  // 4. Extract all available genres in-memory from catalog (0 extra database queries)
+  const allGenres = [...new Set((catalogAnimes || []).flatMap((a) => a.genres || []))].sort();
+
+  // 5. Section Categorizations
   const allAnimes = catalogAnimes || [];
   const trendingList = [...allAnimes].sort((a, b) => (Number(b.view_count) || 0) - (Number(a.view_count) || 0));
   const topRatedList = [...allAnimes].sort((a, b) => (Number(b.rating_avg) || 0) - (Number(a.rating_avg) || 0));
