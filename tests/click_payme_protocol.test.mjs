@@ -248,3 +248,375 @@ test('4. Payme JSON-RPC 2.0 Full State Machine Lifecycle', async () => {
   }, mockAdmin);
   assert.equal(checkTxRes.result.state, PAYME_STATE.COMPLETED);
 });
+
+
+test('5. Payme Plan Validation & Rejection of Non-existent Plans', async () => {
+  const memoryDb = {
+    users: [{ id: 'user-payme-5', username: 'kirito' }],
+    plans: [
+      { id: 'plan-valid-1', name: 'VIP 1 Oy', price_uzs: 25000, duration_days: 30, is_active: true },
+      { id: 'plan-inactive', name: 'Eski Tarif', price_uzs: 15000, duration_days: 30, is_active: false },
+    ],
+    transactions: [],
+    subscriptions: [],
+  };
+
+  const mockAdmin = {
+    from: (table) => {
+      let currentQuery = { table, filters: {} };
+      const chain = {
+        select: () => chain,
+        insert: (data) => {
+          const row = { id: `uuid-${Date.now()}`, ...data };
+          if (table === 'subscription_transactions') memoryDb.transactions.push(row);
+          if (table === 'user_subscriptions') memoryDb.subscriptions.push(row);
+          return {
+            select: () => ({
+              single: async () => ({ data: row, error: null }),
+              maybeSingle: async () => ({ data: row, error: null }),
+            }),
+            data: [row],
+            error: null,
+          };
+        },
+        update: (data) => ({
+          eq: (k, v) => {
+            const list = table === 'user_subscriptions' ? memoryDb.subscriptions : memoryDb.transactions;
+            const matches = list.filter(item => item[k] === v);
+            matches.forEach(item => Object.assign(item, data));
+            return {
+              eq: (k2, v2) => {
+                const subMatches = matches.filter(item => item[k2] === v2);
+                subMatches.forEach(item => Object.assign(item, data));
+                return {
+                  select: () => ({ data: subMatches, error: null }),
+                  data: subMatches,
+                  error: null,
+                };
+              },
+              select: () => ({ data: matches, error: null }),
+              data: matches,
+              error: null,
+            };
+          },
+        }),
+        eq: (k, v) => {
+          currentQuery.filters[k] = v;
+          return chain;
+        },
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => {
+          if (table === 'profiles') {
+            const u = memoryDb.users.find(x => x.id === currentQuery.filters.id);
+            return { data: u || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            const p = memoryDb.plans.find(x => x.id === currentQuery.filters.id);
+            return { data: p || null, error: null };
+          }
+          if (table === 'subscription_transactions') {
+            const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
+            return { data: t || null, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+  };
+
+  // Case A: CheckPerformTransaction with non-existent plan_id
+  const checkInvalidPlan = await handlePaymeRpc({
+    id: 10,
+    method: 'CheckPerformTransaction',
+    params: {
+      amount: 2500000,
+      account: { user_id: 'user-payme-5', plan_id: 'non-existent-plan' },
+    },
+  }, mockAdmin);
+  assert.equal(checkInvalidPlan.error.code, PAYME_ERROR.INVALID_AMOUNT);
+
+  // Case B: CheckPerformTransaction with inactive plan_id
+  const checkInactivePlan = await handlePaymeRpc({
+    id: 11,
+    method: 'CheckPerformTransaction',
+    params: {
+      amount: 1500000,
+      account: { user_id: 'user-payme-5', plan_id: 'plan-inactive' },
+    },
+  }, mockAdmin);
+  assert.equal(checkInactivePlan.error.code, PAYME_ERROR.INVALID_AMOUNT);
+
+  // Case C: CreateTransaction with non-existent plan_id
+  const createInvalidPlan = await handlePaymeRpc({
+    id: 12,
+    method: 'CreateTransaction',
+    params: {
+      id: 'payme-fake-plan-tx',
+      time: Date.now(),
+      amount: 2500000,
+      account: { user_id: 'user-payme-5', plan_id: 'non-existent-plan' },
+    },
+  }, mockAdmin);
+  assert.equal(createInvalidPlan.error.code, PAYME_ERROR.INVALID_AMOUNT);
+
+  // Case D: PerformTransaction with an invalid plan_id in tx fails with CANNOT_PERFORM_OPERATION
+  memoryDb.transactions.push({
+    id: 'tx-with-deleted-plan',
+    transaction_id: 'payme-tx-deleted-plan',
+    user_id: 'user-payme-5',
+    plan_id: 'deleted-plan-uuid',
+    amount_uzs: 25000,
+    status: 'pending',
+    metadata: { payme_state: PAYME_STATE.CREATED },
+  });
+
+  const performDeletedPlan = await handlePaymeRpc({
+    id: 13,
+    method: 'PerformTransaction',
+    params: { id: 'payme-tx-deleted-plan' },
+  }, mockAdmin);
+  assert.equal(performDeletedPlan.error.code, PAYME_ERROR.CANNOT_PERFORM_OPERATION);
+});
+
+test('6. Click & Payme Cancellation Targets Only Associated Subscription (No Overbroad Wipe)', async () => {
+  const memoryDb = {
+    users: [{ id: 'user-multi-sub', username: 'asuna' }],
+    transactions: [
+      {
+        id: 'tx-legit',
+        transaction_id: 'clk-legit-01',
+        user_id: 'user-multi-sub',
+        status: 'completed',
+        metadata: { subscription_id: 'sub-existing-year' },
+      },
+      {
+        id: 'tx-cancel-clk',
+        transaction_id: 'clk-cancel-02',
+        user_id: 'user-multi-sub',
+        status: 'completed',
+        metadata: { subscription_id: 'sub-to-cancel-clk' },
+      },
+      {
+        id: 'tx-cancel-payme',
+        transaction_id: 'payme-cancel-03',
+        user_id: 'user-multi-sub',
+        status: 'completed',
+        metadata: { payme_state: PAYME_STATE.COMPLETED, subscription_id: 'sub-to-cancel-payme' },
+      },
+    ],
+    subscriptions: [
+      {
+        id: 'sub-existing-year',
+        user_id: 'user-multi-sub',
+        plan_name: 'VIP 1 Yil',
+        status: 'active',
+        notes: 'Pre-existing annual subscription',
+      },
+      {
+        id: 'sub-to-cancel-clk',
+        user_id: 'user-multi-sub',
+        plan_name: 'VIP 1 Oy',
+        status: 'active',
+        notes: 'Click to‘lovi muvaffaqiyatli: TxID clk-cancel-02',
+      },
+      {
+        id: 'sub-to-cancel-payme',
+        user_id: 'user-multi-sub',
+        plan_name: 'VIP 3 Oy',
+        status: 'active',
+        notes: 'Payme to‘lovi orqali faollashtirildi: TxID payme-cancel-03',
+      },
+    ],
+  };
+
+  const mockAdmin = {
+    from: (table) => {
+      let currentQuery = { table, filters: {} };
+      const chain = {
+        select: () => chain,
+        update: (data) => ({
+          eq: (k, v) => {
+            const list = table === 'user_subscriptions' ? memoryDb.subscriptions : memoryDb.transactions;
+            const matches = list.filter(item => item[k] === v);
+            matches.forEach(item => Object.assign(item, data));
+            return {
+              eq: (k2, v2) => {
+                const subMatches = matches.filter(item => item[k2] === v2);
+                subMatches.forEach(item => Object.assign(item, data));
+                return { data: subMatches, error: null };
+              },
+              ilike: (col, pattern) => {
+                const cleanPattern = pattern.replace(/%/g, '');
+                const matched = matches.filter(item => String(item[col] || '').includes(cleanPattern));
+                matched.forEach(item => Object.assign(item, data));
+                return { data: matched, error: null };
+              },
+              data: matches,
+              error: null,
+            };
+          },
+        }),
+        eq: (k, v) => {
+          currentQuery.filters[k] = v;
+          return chain;
+        },
+        maybeSingle: async () => {
+          if (table === 'subscription_transactions') {
+            const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
+            return { data: t || null, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+  };
+
+  // 1. Execute Click cancellation for clk-cancel-02
+  const clickCancelRes = await handleClickComplete({
+    click_trans_id: 'clk-cancel-02',
+    merchant_trans_id: 'user-multi-sub',
+    error: -9,
+  }, mockAdmin);
+
+  assert.equal(clickCancelRes.error, CLICK_ERROR.CANCELLED);
+  assert.equal(memoryDb.subscriptions.find(s => s.id === 'sub-to-cancel-clk').status, 'cancelled');
+  assert.equal(memoryDb.subscriptions.find(s => s.id === 'sub-existing-year').status, 'active');
+
+  // 2. Execute Payme CancelTransaction for payme-cancel-03
+  const paymeCancelRes = await handlePaymeRpc({
+    id: 99,
+    method: 'CancelTransaction',
+    params: { id: 'payme-cancel-03', reason: 2 },
+  }, mockAdmin);
+
+  assert.equal(paymeCancelRes.result.state, PAYME_STATE.CANCELLED_AFTER_PAYMENT);
+  assert.equal(memoryDb.subscriptions.find(s => s.id === 'sub-to-cancel-payme').status, 'cancelled');
+  // CRITICAL: Pre-existing annual subscription MUST STILL REMAIN ACTIVE!
+  assert.equal(memoryDb.subscriptions.find(s => s.id === 'sub-existing-year').status, 'active');
+});
+
+
+test('7. Concurrency Protection: Parallel Complete & Perform Calls do not Duplicate Subscriptions', async () => {
+  const memoryDb = {
+    users: [{ id: 'user-concurrent', username: 'kirito-race' }],
+    transactions: [
+      {
+        id: 'tx-clk-race',
+        transaction_id: 'clk-race-01',
+        user_id: 'user-concurrent',
+        status: 'pending',
+        amount_uzs: 25000,
+        metadata: {
+          merchant_prepare_id: 'prep-clk-race',
+          duration_days: 30,
+          plan_name: 'VIP 1 Oy',
+        },
+      },
+    ],
+    subscriptions: [],
+    auditLogs: [],
+  };
+
+  let firstUpdateCompleted = false;
+
+  const mockAdmin = {
+    from: (table) => {
+      let currentQuery = { table, filters: {} };
+      const chain = {
+        select: () => chain,
+        insert: (data) => {
+          const row = { id: `sub-${Date.now()}-${Math.random()}`, ...data };
+          if (table === 'user_subscriptions') memoryDb.subscriptions.push(row);
+          if (table === 'subscription_audit_logs') memoryDb.auditLogs.push(row);
+          return {
+            select: () => ({
+              single: async () => ({ data: row, error: null }),
+              maybeSingle: async () => ({ data: row, error: null }),
+            }),
+            data: [row],
+            error: null,
+          };
+        },
+        update: (data) => ({
+          eq: (k, v) => {
+            currentQuery.filters[k] = v;
+            return {
+              eq: (k2, v2) => {
+                const tx = memoryDb.transactions.find(t => t.id === currentQuery.filters.id);
+                // Atomic condition check: if k2 is status and v2 is pending
+                if (k2 === 'status' && v2 === 'pending') {
+                  if (tx && tx.status === 'pending' && !firstUpdateCompleted) {
+                    firstUpdateCompleted = true;
+                    Object.assign(tx, data);
+                    return {
+                      select: () => ({ data: [tx], error: null }),
+                      data: [tx],
+                      error: null,
+                    };
+                  } else {
+                    // Already updated by concurrent thread! Returns 0 updated rows
+                    return {
+                      select: () => ({ data: [], error: null }),
+                      data: [],
+                      error: null,
+                    };
+                  }
+                }
+                if (tx) Object.assign(tx, data);
+                return {
+                  select: () => ({ data: [tx], error: null }),
+                  data: [tx],
+                  error: null,
+                };
+              },
+            };
+          },
+        }),
+        eq: (k, v) => {
+          currentQuery.filters[k] = v;
+          return chain;
+        },
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => {
+          if (table === 'subscription_transactions') {
+            const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id || x.id === currentQuery.filters.id);
+            return { data: t || null, error: null };
+          }
+          if (table === 'user_subscriptions') {
+            return { data: memoryDb.subscriptions[0] || null, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+  };
+
+  // Run two concurrent handleClickComplete invocations
+  const [res1, res2] = await Promise.all([
+    handleClickComplete({
+      click_trans_id: 'clk-race-01',
+      merchant_trans_id: 'user-concurrent',
+      merchant_prepare_id: 'prep-clk-race',
+      amount: 25000,
+    }, mockAdmin),
+    handleClickComplete({
+      click_trans_id: 'clk-race-01',
+      merchant_trans_id: 'user-concurrent',
+      merchant_prepare_id: 'prep-clk-race',
+      amount: 25000,
+    }, mockAdmin),
+  ]);
+
+  // Both should succeed gracefully
+  assert.equal(res1.error, CLICK_ERROR.SUCCESS);
+  assert.equal(res2.error, CLICK_ERROR.SUCCESS);
+
+  // CRITICAL ATOMICITY CHECK: Exactly 1 subscription created despite concurrent requests
+  assert.equal(memoryDb.subscriptions.length, 1, 'Concurrent requests must create strictly 1 subscription row');
+  assert.equal(memoryDb.transactions[0].status, 'completed');
+});

@@ -145,6 +145,18 @@ export async function POST(request) {
       .eq('id', planId)
       .maybeSingle();
     plan = p;
+    if (!plan || plan.is_active === false) {
+      return NextResponse.json({ error: 'Tarif rejasi topilmadi yoki nofaol' }, { status: 400 });
+    }
+  } else if (amountUzs > 0) {
+    const { data: p } = await admin
+      .from('subscription_plans')
+      .select('*')
+      .eq('price_uzs', amountUzs)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    plan = p;
   }
 
   const planDays = plan?.duration_days || 30;
