@@ -28,7 +28,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
 
-  // Database admin client is initialized per authenticated provider handler
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json(
+      { error: 'Database admin configuration error: missing service role key' },
+      { status: 500 }
+    );
+  }
 
   // ==========================================
   // 1. PAYME JSON-RPC 2.0 ROUTING
@@ -50,8 +56,6 @@ export async function POST(request) {
       );
     }
 
-    let admin;
-    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
     const paymeResult = await handlePaymeRpc(body, admin);
     return NextResponse.json(paymeResult);
   }
@@ -73,14 +77,10 @@ export async function POST(request) {
 
     const action = Number(body?.action);
     if (action === 0) {
-      let admin;
-    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
-    const prepRes = await handleClickPrepare(body, admin);
+      const prepRes = await handleClickPrepare(body, admin);
       return NextResponse.json(prepRes);
     } else if (action === 1) {
-      let admin;
-    try { admin = getAdmin(); } catch { return NextResponse.json({ error: "Database admin configuration error" }, { status: 500 }); }
-    const compRes = await handleClickComplete(body, admin);
+      const compRes = await handleClickComplete(body, admin);
       return NextResponse.json(compRes);
     } else {
       return NextResponse.json({
