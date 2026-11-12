@@ -29,8 +29,6 @@ export async function POST(request) {
     const libraryId = sanitize(process.env.BUNNY_STREAM_LIBRARY_ID);
     const apiKey = sanitize(process.env.BUNNY_STREAM_API_KEY);
 
-    console.log('[BUNNY DEBUG] LibID:', libraryId, 'len:', libraryId.length, 'Key prefix:', apiKey.slice(0, 5), 'Key suffix:', apiKey.slice(-5), 'Key len:', apiKey.length);
-
     if (!libraryId || !apiKey) {
       return NextResponse.json(
         {
@@ -65,8 +63,7 @@ export async function POST(request) {
 
     if (!createRes.ok) {
       const errText = await createRes.text();
-      console.log('[BUNNY DEBUG] Error status:', createRes.status, 'Error body:', errText);
-      logger.error('Bunny create video failed', { status: createRes.status, err: errText });
+      logger.error('Bunny create video failed', { status: createRes.status });
       return NextResponse.json(
         {
           error: `Bunny.net bilan bog‘lanishda xatolik yuz berdi (${createRes.status}). API kalit va kutubxona ID to‘g‘riligini tekshiring.`,

@@ -1,8 +1,12 @@
 import { json, fail, readJson, requireUser } from '@/lib/api';
 import { validateProgress } from '@/lib/validate';
+import { rateLimit } from '@/lib/rate-limit';
 
 // GET /api/progress?animeId=... — ko'rish holati (animeId berilmasa — hammasi, so'nggisi birinchi)
 export async function GET(request) {
+  const rl = rateLimit('api:progress:get', request.headers, 60, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
+
   const ctx = await requireUser();
   if (ctx.error) return ctx.error;
 
@@ -22,6 +26,9 @@ export async function GET(request) {
 // POST /api/progress — ko'rish holatini saqlash (player har ~5 soniyada chaqiradi)
 // body: { episode_id, anime_id, position_sec, duration_sec, completed? }
 export async function POST(request) {
+  const rl = rateLimit('api:progress:post', request.headers, 120, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
+
   const ctx = await requireUser();
   if (ctx.error) return ctx.error;
 

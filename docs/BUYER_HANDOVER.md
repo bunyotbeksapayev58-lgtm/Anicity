@@ -42,7 +42,7 @@ Loyihani to‘liq o‘zingizning nomingizda ishga tushirish uchun quyidagilar ke
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
-5. Testlarni tekshiring (barcha 25 ta test paketi xatosiz o‘tishi kerak):
+5. Testlarni tekshiring (barcha 27 ta test paketi xatosiz o‘tishi kerak):
    ```bash
    npm test
    ```
@@ -59,9 +59,9 @@ Loyihani to‘liq o‘zingizning nomingizda ishga tushirish uchun quyidagilar ke
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) ga kiring va yangi loyiha oching (masalan, Frankfurt yoki London mintaqasida).
 2. Chap menyudan **SQL Editor** bo‘limiga kiring.
-3. Loyihadagi `supabase/migrations/` papkasi ichida **19 ta SQL migratsiya fayli** mavjud:
-   - `001_core_schema.sql` dan boshlab `018_vip_access_columns.sql` gacha bo‘lgan barcha fayllarni tartib bilan SQL Editorda ishga tushiring (Run).
-   - *Eslatma:* Agar `supabase-cli` ishlatsangiz, shunchaki `supabase db push` buyrug‘ini berishingiz kifoya.
+3. Ma’lumotlar bazasini 2 xil usulda sozlash mumkin:
+   - **Eng tez va oson yo‘li (Tavsiya etiladi):** Loyihadagi `supabase/schema.sql` fayli tarkibini to‘liq nusxalab, Supabase SQL Editorga tashlang va **«Run»** tugmasini bosing. Butun baza (20 ta migratsiya, jadvallar, RLS siyosatlari, funksiyalar va triggerlar) 10 soniyada avtomatik tayyor bo‘ladi!
+   - **Ketma-ket migratsiyalar orqali:** `supabase/migrations/` papkasidagi 20 ta SQL faylini (`001_core_schema.sql` dan `019_guest_access_and_security.sql` gacha, jumladan `011b_admin_anime_rpcs.sql`) tartib bilan ishga tushiring yoki `supabase db push` buyrug‘ini bering.
 4. Barcha jadvallar (`animes`, `episodes`, `profiles`, `subscription_plans`, `subscription_transactions`, `rate_limits` va h.k.) avtomatik yaratiladi va RLS (Row Level Security) xavfsizlik qoidalari faollashadi.
 
 ---

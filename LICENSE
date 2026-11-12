@@ -1,20 +1,27 @@
-COMMERCIAL SOURCE CODE LICENSE AGREEMENT
+COMMERCIAL SOFTWARE LICENSE & OWNERSHIP TRANSFER AGREEMENT
 
 Copyright (c) 2026 AniCity. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use,
-copy, modify, merge, publish, and distribute the Software for commercial and
-personal deployments, subject to the following conditions:
+This Commercial License Agreement ("Agreement") governs the purchase, licensing, and
+ownership rights of the AniCity source code, architecture, and associated documentation
+("Software").
 
-1. The software is provided "as is", without warranty of any kind, express or
-   implied, including but not limited to the warranties of merchantability,
-   fitness for a particular purpose and noninfringement. In no event shall the
-   authors or copyright holders be liable for any claim, damages or other
-   liability, whether in an action of contract, tort or otherwise, arising from,
-   out of or in connection with the software or the use or other dealings in the
-   software.
+1. GRANT OF LICENSE / COMMERCIAL OWNERSHIP
+   Upon valid purchase or acquisition of this Software, the Licensee (Buyer) is granted
+   perpetual, worldwide, irrevocable, royalty-free commercial rights to:
+   a) Deploy, host, operate, and monetize the Software for unlimited users under any domain.
+   b) Modify, extend, rebrand (white-label), and customize the source code without restriction.
+   c) Integrate proprietary payment gateways, streaming providers, and third-party services.
+   d) For exclusive purchases: Receive 100% full turnkey transfer of codebase and associated assets.
 
-2. The licensee is responsible for operating the platform in compliance with all
-   applicable local and international copyright and intellectual property laws,
-   payment provider regulations (Click, Payme), and cloud service provider terms.
+2. AS-IS WARRANTY DISCLAIMER
+   The Software is provided "as is", without warranty of any kind, express or implied,
+   including but not limited to warranties of merchantability, fitness for a particular
+   purpose, or non-infringement. In no event shall the original authors or copyright holders
+   be liable for any claim, damages, or liabilities arising from the use or operation of the Software.
+
+3. LEGAL & REGULATORY COMPLIANCE
+   The Licensee is solely responsible for:
+   a) Complying with all applicable local and international copyright, DMCA, and intellectual property laws regarding hosted media and video streaming content.
+   b) Concluding direct merchant service contracts with local payment operators (such as Click.uz and Payme.uz) for commercial payment processing.
+   c) Complying with terms of cloud infrastructure providers (Vercel, Supabase, Bunny.net, Cloudflare).

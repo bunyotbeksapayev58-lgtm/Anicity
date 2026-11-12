@@ -42,7 +42,8 @@ export async function POST(request) {
   const isPayme = providerParam === 'payme' || (body && typeof body.method === 'string' && body.jsonrpc === '2.0');
   if (isPayme) {
     const isAuth = verifyPaymeAuth(authHeader);
-    if (!isAuth && process.env.NODE_ENV === 'production') {
+    const allowInsecure = process.env.ENABLE_PAYMENTS_SANDBOX === 'true' && process.env.NODE_ENV !== 'production';
+    if (!isAuth && !allowInsecure) {
       return NextResponse.json(
         {
           jsonrpc: '2.0',
@@ -66,7 +67,8 @@ export async function POST(request) {
   const isClick = providerParam === 'click' || ('click_trans_id' in (body || {}));
   if (isClick) {
     const isSignValid = verifyClickSignature(body);
-    if (!isSignValid && process.env.NODE_ENV === 'production') {
+    const allowInsecure = process.env.ENABLE_PAYMENTS_SANDBOX === 'true' && process.env.NODE_ENV !== 'production';
+    if (!isSignValid && !allowInsecure) {
       return NextResponse.json({
         click_trans_id: body?.click_trans_id,
         merchant_trans_id: body?.merchant_trans_id,

@@ -1,7 +1,11 @@
 import { json, fail, requireUser } from '@/lib/api';
+import { rateLimit } from '@/lib/rate-limit';
 
 // GET /api/favorites — joriy foydalanuvchining sevimlilari
-export async function GET() {
+export async function GET(request) {
+  const rl = rateLimit('api:favorites:get', request?.headers, 60, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
+
   const ctx = await requireUser();
   if (ctx.error) return ctx.error;
 

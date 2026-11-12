@@ -5,7 +5,7 @@
 
 - 🌐 **Jonli ko‘rish (Production):** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)
 - 📦 **Versiya:** 1.0.0 (Tijoriy sotuvga to‘liq tayyor nashr)
-- 🧪 **Avtomatlashgan testlar:** 25 ta to‘liq test to‘plami (100% muvaffaqiyatli)
+- 🧪 **Avtomatlashgan testlar:** 27 ta to‘liq test to‘plami (100% muvaffaqiyatli)
 
 ---
 
@@ -35,7 +35,7 @@
    - Yordamchi adminlar uchun cheklangan huquqlar tizimi (`assistant_permissions`).
 
 5. **Xavfsizlik va Ma’lumotlar Bazasi:**
-   - Supabase PostgreSQL: 19 ta ketma-ket tartibli migratsiya (001–018).
+   - Supabase PostgreSQL: 20 ta ketma-ket tartibli migratsiya (001–019, 011b) hamda 1-bosishda ishga tushadigan yaxlit `supabase/schema.sql`.
    - Qator darajasidagi to‘liq xavfsizlik (Row Level Security — RLS).
    - Vercel Serverless uchun taqsimlangan atomik rate limiting (`rate_limits` jadvali va `check_rate_limit` RPC).
    - Kriptografik xavfsizlik: Xaridor paketida hech qanday maxfiy kalitlar (secrets) qoldirilmagan.

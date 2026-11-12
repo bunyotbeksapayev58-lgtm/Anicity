@@ -30,8 +30,9 @@ yarn-error.log*
 # Vercel
 .vercel/
 
-# Database backups & local snapshots
-backups/
+# Test artifacts & screenshots
+tests/screenshots/
+*.png.tmp
 
 .vercel
 stitch_extracted/

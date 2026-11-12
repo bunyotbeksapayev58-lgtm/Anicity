@@ -8,9 +8,15 @@ import {
   calculatePlaybackTokenTtl,
 } from '@/lib/video/secure-delivery';
 import { getCurrentSubscription } from '@/lib/subscriptions';
+import { rateLimit } from '@/lib/rate-limit';
 
 // POST /api/video/token — Issues an authorized time-bound playback token
 export async function POST(request) {
+  const rl = rateLimit('api:video:token', request.headers, 30, 60);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: rl.error }, { status: 429 });
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -60,10 +66,10 @@ export async function POST(request) {
     profile,
     episode: {
       ...episode,
-      requires_vip: episode?.requires_vip ?? false,
+      requires_vip: Boolean(episode?.requires_vip || episode?.quality === '4K' || episode?.animes?.is_vip_only),
       animes: {
         ...episode?.animes,
-        is_vip_only: episode?.animes?.is_vip_only ?? false,
+        is_vip_only: Boolean(episode?.animes?.is_vip_only),
       },
     },
     subscriptions: subsRaw || [],

@@ -1,8 +1,12 @@
 import { json, fail, isUuid, requireUser } from '@/lib/api';
+import { rateLimit } from '@/lib/rate-limit';
 
 // POST   /api/animes/:id/favorite  — sevimlilarga qo'shish (idempotent)
 // DELETE /api/animes/:id/favorite  — sevimlilardan olib tashlash
 export async function POST(request, { params }) {
+  const rl = rateLimit('api:favorite:toggle', request.headers, 30, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
+
   const { id } = await params;
   if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
   const ctx = await requireUser();
@@ -16,6 +20,9 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const rl = rateLimit('api:favorite:toggle', request.headers, 30, 60);
+  if (!rl.allowed) return fail(rl.error, 429);
+
   const { id } = await params;
   if (!isUuid(id)) return fail('ID noto‘g‘ri', 400);
   const ctx = await requireUser();
