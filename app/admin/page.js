@@ -16,6 +16,7 @@ import {
   updateUserRole,
 } from '@/app/actions/admin';
 import { isAdminRole } from '@/lib/roles';
+import { getSiteUrl } from '@/lib/siteUrl';
 import { getAdminUserPageCount, normalizeAdminUserQuery } from '@/lib/admin-pagination';
 import AssistantAdminManager from '@/components/AssistantAdminManager';
 
@@ -655,9 +656,9 @@ export default async function AdminPage({ searchParams }) {
 ⚡ Sifat: 1080p Full HD
 
 🎬 Hozir saytda tomosha qiling:
-👉 https://anicity-app.vercel.app/anime/[ANIME_ID]
+👉 ${getSiteUrl()}/anime/[ANIME_ID]
 
-🍿 Barcha qismlar: https://anicity-app.vercel.app
+🍿 Barcha qismlar: ${getSiteUrl()}
 💬 Do‘stlaringiz bilan ulashing!`}</pre>
               </div>
             </div>

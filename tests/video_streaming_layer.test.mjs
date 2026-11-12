@@ -39,8 +39,21 @@ test('1. detectProvider classifies video providers accurately', () => {
 
   // Mux
   const mux = detectProvider('https://stream.mux.com/DS00Spx1CV902MCtP7Gs02Q22x3O00S.m3u8');
-  // .m3u8 check runs before Mux domain check or both are valid streaming adaptive
   assert.ok(mux.isAdaptive);
+
+  // Bunny.net Stream
+  const bunny = detectProvider('bunny:f3a8b2c1-4d5e-6f7a-8b9c-0d1e2f3a4b5c');
+  assert.equal(bunny.provider, VIDEO_PROVIDERS.BUNNY);
+  assert.equal(bunny.isAdaptive, true);
+
+  const bunnyCdn = detectProvider('https://vz-12345.b-cdn.net/f3a8b2c1/playlist.m3u8');
+  assert.equal(bunnyCdn.provider, VIDEO_PROVIDERS.BUNNY);
+  assert.equal(bunnyCdn.isAdaptive, true);
+
+  // Cloudflare R2
+  const r2 = detectProvider('r2:anime/code-geass/ep1/master.m3u8');
+  assert.equal(r2.provider, VIDEO_PROVIDERS.R2);
+  assert.equal(r2.isAdaptive, true);
 });
 
 test('2. getPlaybackSource normalizes URLs and resolves MIME types', () => {

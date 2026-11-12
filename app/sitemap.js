@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 export const revalidate = 3600; // Har 1 soatda kesh yangilanadi
 
 export default async function sitemap() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anicity-app.vercel.app';
+  const baseUrl = getSiteUrl();
 
   const routes = [
     {

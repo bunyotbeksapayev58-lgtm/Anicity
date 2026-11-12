@@ -1,5 +1,7 @@
+import { getSiteUrl } from '../lib/siteUrl.js';
+
 export default function robots() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anicity-app.vercel.app';
+  const baseUrl = getSiteUrl();
   return {
     rules: [
       {

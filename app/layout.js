@@ -3,8 +3,9 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CookieBanner from '@/components/CookieBanner';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import { getSiteUrl } from '@/lib/siteUrl';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anicity-app.vercel.app';
+const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
