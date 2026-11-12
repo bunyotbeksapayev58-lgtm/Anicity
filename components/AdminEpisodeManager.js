@@ -8,6 +8,7 @@ import {
   toggleEpisodePublished,
 } from '@/app/actions/admin';
 import { driveProblem } from '@/lib/drive';
+import BunnyVideoUploader from '@/components/BunnyVideoUploader';
 
 export default function AdminEpisodeManager({ animes = [], initialAnimeId = null, permissions = null }) {
   const assistant = permissions !== null;
@@ -350,11 +351,21 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
               />
             </div>
 
-            {/* Dedicated Google Drive URL input */}
+            {/* Direct Bunny.net Video Upload */}
+            <BunnyVideoUploader
+              episodeTitle={`${currentAnime?.title || 'Anime'} - ${seasonNumber}-mavsum ${episodeNumber}-qism: ${title || ''}`}
+              disabled={isPending || (assistant && editingEpisode && !canChangeVideo)}
+              onUploadSuccess={(newVideoUrl) => {
+                setVideoUrl(newVideoUrl);
+                setErrorMessage(null);
+              }}
+            />
+
+            {/* Video URL input (Bunny, Google Drive, MP4, HLS) */}
             <div className="field">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <label style={{ margin: 0 }}>
-                  Google Drive Video Havolasi (yoki to‘g‘ridan-to‘g‘ri MP4) *
+                  Video Havolasi (Bunny.net, Google Drive yoki to‘g‘ridan-to‘g‘ri MP4) *
                 </label>
                 {videoUrl && (
                   <a
@@ -373,7 +384,7 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
                 type="text"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://drive.google.com/file/d/XXXXXX/view?usp=sharing"
+                placeholder="bunny:GUID yoki https://drive.google.com/file/d/XXXXXX/view"
                 required
                 disabled={isPending || (assistant && editingEpisode && !canChangeVideo)}
                 className={driveWarning ? 'input-error' : ''}
@@ -385,12 +396,11 @@ export default function AdminEpisodeManager({ animes = [], initialAnimeId = null
               )}
               {videoUrl && !driveWarning && (
                 <div style={{ color: '#10b981', fontSize: 12, marginTop: 4 }}>
-                  ✓ Video havolasi to‘g‘ri kiritildi.
+                  ✓ Video havolasi biriktirildi: {videoUrl.startsWith('bunny:') ? 'Bunny.net Stream (HLS)' : 'Tashqi manzil'}
                 </div>
               )}
               <p className="hint" style={{ marginTop: 4 }}>
-                Google Drive video faylida: <b>Ulashish (Share) → «Havolaga ega bo‘lgan har kim» (Anyone with the link)</b> yoqilgan bo‘lishi shart.
-                Papka havolasi emas, aniq video fayl havolasi bo‘lishi lozim.
+                Faylni yuqoridagi <b>«Bunny.net Serveriga Yuklash»</b> orqali to‘g‘ridan-to‘g‘ri yuklashingiz yoki Google Drive/MP4 havolasini qo‘lda kiritishingiz mumkin.
               </p>
             </div>
 

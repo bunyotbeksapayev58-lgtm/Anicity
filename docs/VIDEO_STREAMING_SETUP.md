@@ -26,13 +26,20 @@ Bunny.net — dunyodagi eng arzon va eng tezkor video striming CDN xizmati hisob
 ### 🚀 Qanday ulanadi? (5 daqiqada):
 1. [bunny.net](https://bunny.net) saytidan ro‘yxatdan o‘ting va hisobingizga $10 mablag‘ tashlang.
 2. Chap menyudan **Stream** bo‘limiga kiring va **"Add Video Library"** tugmasini bosing (Masalan: `anicity-videos`).
-3. Video kutubxonangiz nomini va eng yaqin CDN zonasini (Europe / Middle East) tanlang.
-4. Istalgan anime qismini (MP4) yuklang.
-5. Yuklangach, videoning **Direct Play URL (HLS)** yoki **Video ID**sini oling:
-   - Masalan: `https://vz-xxxxxxxx.b-cdn.net/f3a8b2c1-xxxx-xxxx/playlist.m3u8`
-   - Yoki qisqacha: `bunny:f3a8b2c1-xxxx-xxxx`
-6. Admin panelda yangi qism qo‘shganda shu havolani joylashtiring. 
-7. AniCity pleyeri avtomatik tarzda 360p–1080p sifat selektorini va HLS oqimini ko‘rsatadi!
+3. Video kutubxonasining **Library ID** va **API Key** ma’lumotlarini oling:
+   - Bunny dashboard -> Stream -> Library -> API bo‘limida ko‘rinadi.
+4. Ushbu kalitlarni `.env` faylingizga kiriting:
+   ```env
+   BUNNY_STREAM_LIBRARY_ID="123456"
+   BUNNY_STREAM_API_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+   BUNNY_STREAM_CDN_HOSTNAME="vz-xxxxxxxx.b-cdn.net"
+   ```
+5. **Saytning o‘zidan to‘g‘ridan-to‘g‘ri yuklash:**
+   - Admin panelga kirasiz: Epizod boshqaruvida **«🐰 Bunny.net Serveriga Yuklash»** tugmasi bor.
+   - Kompyuteringizdan video faylni tanlaysiz (MP4, MKV va h.k.).
+   - Video to‘g‘ridan-to‘g‘ri brauzerdan Bunny CDN ga tezkor TUS protokoli orqali yuklanadi (yuklanish foizi ko‘rinib turadi).
+   - Yuklanib bo‘lgach, `video_url` avtomatik ravishda `bunny:<video-id>` shaklida birikadi va saqlanadi!
+6. AniCity pleyeri ushbu videoni avtomatik tarzda 360p–1080p sifat selektori va HLS oqimi bilan uzatadi!
 
 ---
 
