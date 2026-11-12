@@ -79,19 +79,28 @@ export default function BunnyVideoUploader({
       }
 
       // 2. Initialize TUS Resumable Upload directly to Bunny.net
+      // Ensure strictly valid ASCII ByteStrings (no BOM / character code 65279 or non-ASCII in headers)
+      const cleanByteString = (val) => {
+        if (val === null || val === undefined) return '';
+        return String(val)
+          .replace(/^\uFEFF+/, '')
+          .replace(/[^\x20-\x7E]/g, '')
+          .trim();
+      };
+
       const upload = new tus.Upload(selectedFile, {
         endpoint: creds.endpoint || 'https://video.bunnycdn.com/tusupload',
         retryDelays: [0, 2000, 5000, 10000],
         chunkSize: 5 * 1024 * 1024, // 5MB bo‘laklar (chunks)
         headers: {
-          AuthorizationSignature: creds.signature,
-          AuthorizationExpire: String(creds.expirationTime),
-          LibraryId: String(creds.libraryId),
-          VideoId: creds.videoId,
+          AuthorizationSignature: cleanByteString(creds.signature),
+          AuthorizationExpire: cleanByteString(creds.expirationTime),
+          LibraryId: cleanByteString(creds.libraryId),
+          VideoId: cleanByteString(creds.videoId),
         },
         metadata: {
-          filetype: selectedFile.type || 'video/mp4',
-          title: selectedFile.name,
+          filetype: cleanByteString(selectedFile.type) || 'video/mp4',
+          title: cleanByteString(selectedFile.name) || 'episode.mp4',
         },
         onError: (err) => {
           setIsUploading(false);

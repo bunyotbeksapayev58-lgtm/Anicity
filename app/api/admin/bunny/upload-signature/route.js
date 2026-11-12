@@ -18,8 +18,16 @@ export async function POST(request) {
     }
 
     // 2. Validate Bunny Stream environment variables
-    const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
-    const apiKey = process.env.BUNNY_STREAM_API_KEY;
+    const sanitize = (val) => {
+      if (!val) return '';
+      return String(val)
+        .replace(/^\uFEFF+/, '')
+        .replace(/[^\x20-\x7E]/g, '')
+        .trim();
+    };
+
+    const libraryId = sanitize(process.env.BUNNY_STREAM_LIBRARY_ID);
+    const apiKey = sanitize(process.env.BUNNY_STREAM_API_KEY);
 
     if (!libraryId || !apiKey) {
       return NextResponse.json(
@@ -83,12 +91,12 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      videoId,
-      libraryId: String(libraryId),
-      signature,
-      expirationTime: String(expirationTime),
+      videoId: sanitize(videoId),
+      libraryId: sanitize(libraryId),
+      signature: sanitize(signature),
+      expirationTime: sanitize(expirationTime),
       endpoint: 'https://video.bunnycdn.com/tusupload',
-      videoUrl: `bunny:${videoId}`,
+      videoUrl: `bunny:${sanitize(videoId)}`,
     });
   } catch (err) {
     logger.error('Error generating Bunny upload signature', err);

@@ -56,3 +56,21 @@ test('4. AdminEpisodeManager Integration Verification', async () => {
   assert.ok(code.includes('<BunnyVideoUploader'), 'AdminEpisodeManager must render BunnyVideoUploader');
   assert.ok(code.includes('onUploadSuccess'), 'Must connect onUploadSuccess callback to setVideoUrl');
 });
+
+test('5. ByteString / BOM (charCode 65279) Sanitization Verification', () => {
+  const dirtyInput = '\uFEFF807345';
+  assert.equal(dirtyInput.charCodeAt(0), 65279);
+
+  const cleanByteString = (val) => {
+    if (val === null || val === undefined) return '';
+    return String(val)
+      .replace(/^\uFEFF+/, '')
+      .replace(/[^\x20-\x7E]/g, '')
+      .trim();
+  };
+
+  const clean = cleanByteString(dirtyInput);
+  assert.equal(clean, '807345');
+  assert.equal(clean.charCodeAt(0), 56);
+  assert.ok([...clean].every((c) => c.charCodeAt(0) <= 255), 'All characters must be valid ByteStrings (<= 255)');
+});
