@@ -84,13 +84,14 @@ test('4. Anime Details Page Source Inspection: All child queries use canonical a
 test('5. Watch Page Source Inspection: No non-existent columns in PostgREST select query', async () => {
   const code = await fs.readFile(path.resolve('app/watch/[animeId]/[num]/page.js'), 'utf8');
 
-  // Verify non-existent columns are NOT in the raw PostgREST .select() query string
-  const selectQueryMatch = code.match(/\.select\((['"`])([\s\S]*?)\1\)/);
-  assert.ok(selectQueryMatch, 'Select query must exist');
-  const selectQueryContent = selectQueryMatch[2];
+  // Verify main anime and episodes select query in Watch Page
+  const allSelects = [...code.matchAll(/\.select\((['"`])([\s\S]*?)\1\)/g)];
+  const watchSelect = allSelects.find((m) => m[2].includes('episodes'));
+  assert.ok(watchSelect, 'Watch select query with episodes must exist');
+  const selectQueryContent = watchSelect[2];
 
-  assert.ok(!selectQueryContent.includes('is_vip_only'), 'select() query MUST NOT contain is_vip_only');
-  assert.ok(!selectQueryContent.includes('requires_vip'), 'select() query MUST NOT contain requires_vip');
+  assert.ok(selectQueryContent.includes('is_vip_only'), 'select() query MUST contain is_vip_only');
+  assert.ok(selectQueryContent.includes('requires_vip'), 'select() query MUST contain requires_vip');
 
   // Verify validatePlaybackAccess receives safe fallbacks and satisfies existing test assertions
   assert.ok(code.includes('requires_vip:'), 'Page must pass requires_vip fallback property to validatePlaybackAccess');
@@ -106,8 +107,8 @@ test('6. Video Token API Source Inspection: Only queries existing database colum
   assert.ok(epSelectMatch, 'Episodes select query must exist');
   const epSelectContent = epSelectMatch[2];
 
-  assert.ok(!epSelectContent.includes('requires_vip'), 'Episodes select query MUST NOT contain requires_vip');
-  assert.ok(!epSelectContent.includes('is_vip_only'), 'Episodes select query MUST NOT contain is_vip_only');
+  assert.ok(epSelectContent.includes('requires_vip'), 'Episodes select query MUST contain requires_vip');
+  assert.ok(epSelectContent.includes('is_vip_only'), 'Episodes select query MUST contain is_vip_only');
 });
 
 test('7. Live Supabase Verification: Code Geass resolves via UUID, slug, and watch page query succeeds', async () => {
@@ -168,7 +169,7 @@ test('7. Live Supabase Verification: Code Geass resolves via UUID, slug, and wat
   const watchQuery = applyAnimeIdentifierFilter(
     supabase
       .from('animes')
-      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published)'),
+      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published, requires_vip)'),
     'ed7d0df3-a345-451b-8c18-dbb1364fe2a7'
   );
   const { data: watchData, error: watchErr } = await watchQuery.maybeSingle();

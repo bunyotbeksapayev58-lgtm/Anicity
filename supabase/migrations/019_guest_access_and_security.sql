@@ -13,10 +13,15 @@ GRANT SELECT ON public.animes TO anon, authenticated;
 GRANT SELECT ON public.banners TO anon, authenticated;
 GRANT SELECT ON public.trailers TO anon, authenticated;
 GRANT SELECT ON public.seasons TO anon, authenticated;
-GRANT SELECT ON public.episodes TO anon, authenticated;
 GRANT SELECT ON public.episode_subtitles TO anon, authenticated;
 GRANT SELECT ON public.subscription_plans TO anon, authenticated;
 GRANT SELECT ON public.site_settings TO anon, authenticated;
+
+-- Episodes: Authenticated users select episodes governed by RLS.
+-- Anon visitors are granted select only on non-sensitive catalog columns (video_url strictly withheld from anon).
+GRANT SELECT ON public.episodes TO authenticated;
+REVOKE SELECT ON public.episodes FROM anon;
+GRANT SELECT (id, anime_id, season_id, season_number, number, title, description, thumbnail_url, duration_seconds, is_published, quality, requires_vip, created_at, updated_at) ON public.episodes TO anon;
 
 -- 2. RLS POLICIES FOR PUBLIC READ ACCESS
 
@@ -42,14 +47,33 @@ CREATE POLICY "seasons read" ON public.seasons FOR SELECT TO anon, authenticated
     SELECT 1 FROM public.animes a WHERE a.id = seasons.anime_id AND a.is_published
   ));
 
--- Episodes: Viewable if published and parent anime is published
+-- Episodes: Viewable if published, parent anime is published, and VIP access is satisfied
 DROP POLICY IF EXISTS "episodes read" ON public.episodes;
 CREATE POLICY "episodes read" ON public.episodes FOR SELECT TO anon, authenticated
-  USING (public.is_staff() OR (
-    episodes.is_published AND EXISTS (
-      SELECT 1 FROM public.animes a WHERE a.id = episodes.anime_id AND a.is_published
+  USING (
+    public.is_staff()
+    OR (
+      episodes.is_published
+      AND EXISTS (
+        SELECT 1 FROM public.animes a WHERE a.id = episodes.anime_id AND a.is_published
+      )
+      AND (
+        -- Free content: accessible to guests and registered users
+        (COALESCE(episodes.requires_vip, false) = false AND COALESCE(episodes.quality, '') <> '4K' AND NOT EXISTS (
+          SELECT 1 FROM public.animes va WHERE va.id = episodes.anime_id AND COALESCE(va.is_vip_only, false) = true
+        ))
+        -- VIP content: strictly accessible only to active VIP subscribers or staff
+        OR (
+          auth.uid() IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.user_subscriptions s
+            WHERE s.user_id = auth.uid()
+              AND s.status = 'active'
+              AND s.expires_at > now()
+          )
+        )
+      )
     )
-  ));
+  );
 
 -- Subtitles: Viewable if episode and anime are published
 DROP POLICY IF EXISTS "subtitles read" ON public.episode_subtitles;

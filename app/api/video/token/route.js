@@ -43,10 +43,10 @@ export async function POST(request) {
     .eq('id', user.id)
     .maybeSingle();
 
-  // 2. Fetch episode and anime metadata (only selects existing schema columns)
+  // 2. Fetch episode and anime metadata (includes VIP gating columns)
   const { data: episode, error: epErr } = await supabase
     .from('episodes')
-    .select('id, anime_id, video_url, is_published, quality, animes(title)')
+    .select('id, anime_id, video_url, is_published, quality, requires_vip, animes(title, is_vip_only)')
     .eq('id', episodeId)
     .maybeSingle();
 

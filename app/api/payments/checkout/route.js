@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { checkDistributedRateLimit } from '@/lib/rate-limit';
+import { rateLimit, checkDistributedRateLimit } from '@/lib/rate-limit';
 import { createCheckoutUrl, PAYMENT_PROVIDERS } from '@/lib/payments/provider';
 import { getSiteUrl } from '@/lib/siteUrl';
 
@@ -9,6 +9,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
+    // 0. Tezkor xotiradagi Rate Limiting (Instant in-memory rate limit)
+    const rl = rateLimit('payments:checkout', request.headers, 10, 60);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: rl.error }, { status: 429 });
+    }
+
     const supabase = await createClient();
     const reqHeaders = await headers().catch(() => null);
 

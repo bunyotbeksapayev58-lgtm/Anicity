@@ -32,7 +32,7 @@ export default async function WatchPage({ params }) {
   const query = applyAnimeIdentifierFilter(
     supabase
       .from('animes')
-      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published)'),
+      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published, requires_vip)'),
     animeId
   );
   const { data: anime } = await query.maybeSingle();
