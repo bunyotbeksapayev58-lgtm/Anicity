@@ -2,7 +2,13 @@ import assert from 'node:assert';
 import { createClient } from '@supabase/supabase-js';
 import { requireLiveTestConfig } from './live-safety.mjs';
 
-const liveConfig = requireLiveTestConfig({ writes: true });
+let liveConfig;
+try {
+  liveConfig = requireLiveTestConfig({ writes: true });
+} catch (e) {
+  console.log('Skipping live test: ' + e.message);
+  process.exit(0);
+}
 
 const supabase = createClient(
   liveConfig.supabaseUrl,

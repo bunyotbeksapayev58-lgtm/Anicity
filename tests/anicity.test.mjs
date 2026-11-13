@@ -698,5 +698,5 @@ assert.ok(driveLayout.externalBarControls.includes('Katta ekran (Fullscreen)'));
 console.log('✔ Control Separation (Zero Overlap over Iframe) passed');
 
 console.log('\n========================================');
-console.log('ALL 28 TEST SUITES PASSED PERFECTLY (100%)');
+console.log('ALL 28 CORE ANICITY SPEC CHECKS PASSED (100%)');
 console.log('========================================\n');

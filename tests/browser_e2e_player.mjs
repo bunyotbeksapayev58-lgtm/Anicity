@@ -11,13 +11,17 @@ if (fs.existsSync('.env.local')) {
   }
 }
 
-const PROD_URL = process.env.PROD_URL || 'https://anicity-app.vercel.app';
-const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || 'sapayev1231@gmail.com';
-const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || 'sapayev3112';
+const PROD_URL = process.env.PROD_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const QA_EMAIL = process.env.QA_USER_EMAIL || process.env.TEST_USER_EMAIL || '';
+const QA_PASSWORD = process.env.QA_USER_PASSWORD || process.env.TEST_USER_PASSWORD || '';
 
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 async function runBrowserPlayerVerification() {
+  if (!QA_EMAIL || !QA_PASSWORD) {
+    console.log('Skipping browser player verification: QA_USER_EMAIL or QA_USER_PASSWORD not provided.');
+    return;
+  }
   console.log('\n======================================================');
   console.log('   BROWSER E2E: MOBILE VIDEO PLAYER & REAL PLAYBACK');
   console.log(`   Chrome Binary: ${CHROME_PATH}`);

@@ -41,13 +41,13 @@ Owner — eng yuqori rol. Uni **faqat SQL Editor orqali** tayinlash mumkin. Ilov
 - Foydalanuvchi emaili tasdiqlangan bo'lishi shart.
 
 **Qadamlar:**
-1. Saytda `sapayev1231` username bilan ro'yxatdan o'ting (email kiriting).
+1. Saytda o'zingiz tanlagan username (masalan `admin`) bilan ro'yxatdan o'ting (email kiriting).
 2. Emailingizdagi tasdiqlash havolasini bosing.
 3. SQL Editor da:
    ```sql
-   select public.bootstrap_owner('sapayev1231');
+   select public.bootstrap_owner('admin');
    ```
-4. Natija: `owner assigned to sapayev1231`. Xato bo'lsa:
+4. Natija: `owner assigned to admin`. Xato bo'lsa:
    - "email ... is not confirmed" → 2-qadamni bajaring.
    - "user ... not found" → 1-qadamni bajaring.
    - "an owner already exists" → owner allaqachon tayinlangan, qo'shimcha amal kerak emas.

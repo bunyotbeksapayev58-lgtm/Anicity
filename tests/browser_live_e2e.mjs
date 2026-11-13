@@ -19,11 +19,19 @@ if (fs.existsSync(envTestPath)) {
 }
 
 const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const BASE_URL = process.env.BASE_URL || 'https://anicity-git-feature-takeover-codex-integration-aniverse3.vercel.app';
-const QA_ADMIN_EMAIL = process.env.QA_ADMIN_EMAIL || 'qa-admin@anicity.internal';
-const QA_ADMIN_PASSWORD = process.env.QA_ADMIN_PASSWORD;
+const BASE_URL = process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const QA_ADMIN_EMAIL = process.env.QA_ADMIN_EMAIL || '';
+const QA_ADMIN_PASSWORD = process.env.QA_ADMIN_PASSWORD || '';
 
 async function runBrowserE2E() {
+  if (process.env.ANICITY_ENABLE_LIVE_TESTS !== 'YES') {
+    console.log('Skipping browser live E2E: Live tests are disabled. Set ANICITY_ENABLE_LIVE_TESTS=YES to opt in.');
+    return;
+  }
+  if (!QA_ADMIN_PASSWORD) {
+    console.log('Skipping browser live E2E: QA_ADMIN_PASSWORD not provided.');
+    return;
+  }
   console.log('--- STARTING REAL CHROME BROWSER E2E TEST ---');
   const browser = await puppeteer.launch({
     executablePath: CHROME_PATH,

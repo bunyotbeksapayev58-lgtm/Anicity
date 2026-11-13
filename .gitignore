@@ -36,5 +36,6 @@ tests/screenshots/
 
 .vercel
 stitch_extracted/
+scratch/
 .env*
 !.env.example

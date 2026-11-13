@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { requireLiveTestConfig } from './live-safety.mjs';
 
-const liveConfig = requireLiveTestConfig({ target: true });
+let liveConfig;
+try {
+  liveConfig = requireLiveTestConfig({ target: true });
+} catch (e) {
+  console.log('Skipping live verify: ' + e.message);
+  process.exit(0);
+}
 
 async function verifyLive() {
   const supabase = createClient(

@@ -1,8 +1,10 @@
+import os
 import urllib.request
 import json
 
-run_id = 41614994178
-url = f'https://api.github.com/repos/bunyotbeksapayev58-lgtm/Anicity/actions/runs/{run_id}/jobs'
+repo = os.environ.get('GITHUB_REPOSITORY', 'owner/repo')
+run_id = os.environ.get('GITHUB_RUN_ID', '12345678')
+url = f'https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs'
 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
 try:
     with urllib.request.urlopen(req) as response:

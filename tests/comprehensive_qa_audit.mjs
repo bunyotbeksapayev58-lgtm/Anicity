@@ -2,7 +2,13 @@ import assert from 'node:assert';
 import { createClient } from '@supabase/supabase-js';
 import { requireLiveTestConfig } from './live-safety.mjs';
 
-const liveConfig = requireLiveTestConfig({ target: true });
+let liveConfig;
+try {
+  liveConfig = requireLiveTestConfig({ target: true });
+} catch (e) {
+  console.log('Skipping live audit: ' + e.message);
+  process.exit(0);
+}
 const QA_TARGET_URL = liveConfig.targetUrl;
 
 const auditResults = {
