@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
 // /watch allows guest playback for free episodes (VIP episodes gated at page level)
-const PROTECTED_PATHS = ['/admin', '/favorites', '/history', '/profile', '/settings'];
+const PROTECTED_PATHS = ['/admin', '/assistant-admin', '/favorites', '/history', '/profile', '/settings'];
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export async function proxy(request) {
