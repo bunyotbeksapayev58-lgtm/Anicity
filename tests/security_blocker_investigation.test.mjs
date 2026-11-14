@@ -196,38 +196,45 @@ test('TASK 4.1: Click MD5 signature, Prepare, and Complete idempotency', async (
   const auditLogs = [];
 
   const mockAdmin = {
-    from: (table) => ({
-      select: () => ({
-        eq: (col, val) => ({
-          maybeSingle: async () => {
-            if (table === 'profiles') return { data: { id: val, username: 'testuser' }, error: null };
-            if (table === 'subscription_transactions') {
-              const tx = transactions.find((t) => t.transaction_id === val);
-              return { data: tx || null, error: null };
-            }
-            return { data: null, error: null };
-          },
-          eq: () => ({
-            order: () => ({
-              limit: async () => ({ data: subscriptions.filter((s) => s.user_id === val), error: null }),
-            }),
-          }),
-        }),
-      }),
-      insert: async (row) => {
-        if (table === 'subscription_transactions') transactions.push({ ...row, id: 'tx-1' });
-        if (table === 'user_subscriptions') subscriptions.push({ ...row, id: 'sub-1' });
-        if (table === 'subscription_audit_logs') auditLogs.push(row);
-        return { data: row, error: null };
-      },
-      update: (updates) => ({
+    from: (table) => {
+      let filters = {};
+      const chain = {
+        select: () => chain,
         eq: (col, val) => {
-          const tx = transactions.find((t) => t.transaction_id === val || t.id === val);
-          if (tx) Object.assign(tx, updates);
-          return { error: null };
+          filters[col] = val;
+          return chain;
         },
-      }),
-    }),
+        order: () => chain,
+        limit: async () => ({ data: subscriptions.filter((s) => s.user_id === filters.user_id), error: null }),
+        maybeSingle: async () => {
+          if (table === 'profiles') return { data: { id: filters.id, username: 'testuser' }, error: null };
+          if (table === 'subscription_transactions') {
+            const tx = transactions.find((t) => t.transaction_id === filters.transaction_id);
+            return { data: tx || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            return { data: { id: 'plan-def', name: 'VIP Standart', price_uzs: 25000, duration_days: 30, is_active: true }, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return {
+        select: () => chain,
+        insert: async (row) => {
+          if (table === 'subscription_transactions') transactions.push({ ...row, id: 'tx-1' });
+          if (table === 'user_subscriptions') subscriptions.push({ ...row, id: 'sub-1' });
+          if (table === 'subscription_audit_logs') auditLogs.push(row);
+          return { data: row, error: null };
+        },
+        update: (updates) => ({
+          eq: (col, val) => {
+            const tx = transactions.find((t) => t.transaction_id === val || t.id === val);
+            if (tx) Object.assign(tx, updates);
+            return { error: null };
+          },
+        }),
+      };
+    },
   };
 
   // 1. Prepare
@@ -265,41 +272,48 @@ test('TASK 4.2: Payme Basic Auth, JSON-RPC 2.0 lifecycle, and duplicate protecti
   const subscriptions = [];
 
   const mockAdmin = {
-    from: (table) => ({
-      select: () => ({
-        eq: (col, val) => ({
-          maybeSingle: async () => {
-            if (table === 'profiles') return { data: { id: val }, error: null };
-            if (table === 'subscription_transactions') {
-              const tx = transactions.find((t) => t.transaction_id === val);
-              return { data: tx || null, error: null };
-            }
-            return { data: null, error: null };
-          },
-          eq: () => ({
-            order: () => ({
-              limit: async () => ({ data: [], error: null }),
-            }),
+    from: (table) => {
+      let filters = {};
+      const chain = {
+        select: () => chain,
+        eq: (col, val) => {
+          filters[col] = val;
+          return chain;
+        },
+        order: () => chain,
+        limit: async () => ({ data: [], error: null }),
+        maybeSingle: async () => {
+          if (table === 'profiles') return { data: { id: filters.id || 'user-payme-1' }, error: null };
+          if (table === 'subscription_transactions') {
+            const tx = transactions.find((t) => t.transaction_id === filters.transaction_id);
+            return { data: tx || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            return { data: { id: 'plan-def', name: 'VIP Standart', price_uzs: 25000, duration_days: 30, is_active: true }, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return {
+        select: () => chain,
+        insert: (row) => ({
+          select: () => ({
+            single: async () => {
+              const created = { ...row, id: 'payme-tx-internal-1' };
+              transactions.push(created);
+              return { data: created, error: null };
+            },
           }),
         }),
-      }),
-      insert: (row) => ({
-        select: () => ({
-          single: async () => {
-            const created = { ...row, id: 'payme-tx-internal-1' };
-            transactions.push(created);
-            return { data: created, error: null };
+        update: (updates) => ({
+          eq: (col, val) => {
+            const tx = transactions.find((t) => t.transaction_id === val || t.id === val);
+            if (tx) Object.assign(tx, updates);
+            return { error: null };
           },
         }),
-      }),
-      update: (updates) => ({
-        eq: (col, val) => {
-          const tx = transactions.find((t) => t.transaction_id === val || t.id === val);
-          if (tx) Object.assign(tx, updates);
-          return { error: null };
-        },
-      }),
-    }),
+      };
+    },
   };
 
   // Step 1: CheckPerformTransaction

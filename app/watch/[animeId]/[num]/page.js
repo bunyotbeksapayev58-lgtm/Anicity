@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import Player from '@/components/Player';
 import { toggleEpisodeCompleted } from '@/app/actions/progress';
 import { isDriveUrl } from '@/lib/drive';
@@ -32,7 +33,7 @@ export default async function WatchPage({ params }) {
   const query = applyAnimeIdentifierFilter(
     supabase
       .from('animes')
-      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, episodes(id, season_number, number, title, video_url, thumbnail_url, quality, is_published, requires_vip)'),
+      .select('id, title, alt_title, description, poster_url, banner_url, year, status, studio, genres, rating_avg, is_vip_only, created_at, episodes(id, season_number, number, title, thumbnail_url, quality, is_published, requires_vip)'),
     animeId
   );
   const { data: anime } = await query.maybeSingle();
@@ -94,6 +95,26 @@ export default async function WatchPage({ params }) {
     }
   }
 
+  // Retrieve video_url server-side using service-role after access verification (avoids anon column RLS block)
+  let videoUrl = null;
+  const adminClient = createAdminClient();
+  if (adminClient) {
+    const { data: epVideo } = await adminClient
+      .from('episodes')
+      .select('video_url')
+      .eq('id', ep.id)
+      .maybeSingle();
+    videoUrl = epVideo?.video_url || null;
+  } else if (user) {
+    const { data: epVideo } = await supabase
+      .from('episodes')
+      .select('video_url')
+      .eq('id', ep.id)
+      .maybeSingle();
+    videoUrl = epVideo?.video_url || null;
+  }
+  ep.video_url = videoUrl;
+
   // Watch progress map (for logged-in users)
   let progMap = new Map();
   let saved = null;
@@ -140,7 +161,7 @@ export default async function WatchPage({ params }) {
     <div className="watch-page-pro">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(episodeJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(episodeJsonLd).replace(/</g, '\\u003c') }}
       />
       {/* 1. Header Navigation Bar */}
       <div className="watch-nav-header">

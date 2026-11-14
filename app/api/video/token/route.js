@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { generatePlaybackToken } from '@/lib/video/provider';
 import {
   validatePlaybackAccess,
@@ -17,13 +18,6 @@ export async function POST(request) {
     return NextResponse.json({ error: rl.error }, { status: 429 });
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Foydalanuvchi tizimga kirmagan (Unauthorized)' }, { status: 401 });
-  }
-
   let body;
   try {
     body = await request.json();
@@ -36,15 +30,14 @@ export async function POST(request) {
     return NextResponse.json({ error: 'episodeId kiritilishi shart' }, { status: 422 });
   }
 
-  // 1. Fetch user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, suspended_at')
-    .eq('id', user.id)
-    .maybeSingle();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // 2. Fetch episode and anime metadata (includes VIP gating columns)
-  const { data: episode, error: epErr } = await supabase
+  const adminClient = createAdminClient();
+  const dbClient = adminClient || supabase;
+
+  // 1. Fetch episode and anime metadata (includes VIP gating columns)
+  const { data: episode, error: epErr } = await dbClient
     .from('episodes')
     .select('id, anime_id, video_url, is_published, quality, requires_vip, animes(title, is_vip_only)')
     .eq('id', episodeId)
@@ -53,6 +46,52 @@ export async function POST(request) {
   if (epErr || !episode) {
     return NextResponse.json({ error: 'Qism topilmadi' }, { status: 404 });
   }
+
+  if (episode.is_published === false) {
+    return NextResponse.json({ error: 'Ushbu qism hali e’lon qilinmagan' }, { status: 403 });
+  }
+
+  const isVipRequired = Boolean(
+    episode.requires_vip === true ||
+    episode.quality === '4K' ||
+    episode.animes?.is_vip_only === true
+  );
+
+  // Guest playback support for free public episodes
+  if (!user) {
+    if (isVipRequired) {
+      return NextResponse.json(
+        { error: 'Ushbu qismni tomosha qilish uchun tizimga kirish va VIP obuna talab etiladi', code: 'VIP_REQUIRED' },
+        { status: 403 }
+      );
+    }
+
+    const signingKey = process.env.VIDEO_SIGNING_KEY || (process.env.NODE_ENV !== 'production' ? 'dev-insecure-signing-key-placeholder-32chars' : '');
+    if (!signingKey) {
+      return NextResponse.json({ error: 'Server video shifrlash kaliti sozlanmagan' }, { status: 500 });
+    }
+
+    const ttlSeconds = 7200; // 2 hours for free guest playback
+    const token = generatePlaybackToken(
+      { userId: 'guest', episodeId: episode.id, ttlSeconds },
+      signingKey
+    );
+    const deliveryConfig = buildDeliveryConfig(episode, token);
+
+    return NextResponse.json({
+      success: true,
+      token,
+      ttlSeconds,
+      delivery: deliveryConfig,
+    });
+  }
+
+  // 2. Fetch authenticated user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, suspended_at')
+    .eq('id', user.id)
+    .maybeSingle();
 
   // 3. Fetch user subscriptions
   const { data: subsRaw } = await supabase
@@ -84,12 +123,6 @@ export async function POST(request) {
   }
 
   // 5. Calculate safe clamped TTL (Token expiry strictly cannot outlive subscription)
-  const isVipRequired = Boolean(
-    episode.requires_vip === true ||
-    episode.quality === '4K' ||
-    episode.animes?.is_vip_only === true
-  );
-
   const ttlSeconds = calculatePlaybackTokenTtl({
     requestedTtl: 7200,
     subscriptionExpiresAt: access.subscriptionExpiresAt,

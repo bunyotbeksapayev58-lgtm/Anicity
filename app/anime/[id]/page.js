@@ -106,7 +106,7 @@ export default async function AnimeDetailsPage({ params }) {
     <div className="anime-details-page-pro">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
       {/* 1. Cinematic Backdrop */}
       <div className="details-hero-backdrop-wrap">

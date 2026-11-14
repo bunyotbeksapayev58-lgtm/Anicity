@@ -85,7 +85,7 @@ export async function POST(request) {
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err.message || 'To‘lov havolasini yaratishda ichki xatolik yuz berdi' },
+      { error: 'To‘lov havolasini yaratishda ichki xatolik yuz berdi' },
       { status: 500 }
     );
   }

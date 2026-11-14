@@ -6,7 +6,13 @@ import { logger } from '@/lib/logger';
 function getSafeNext(next, fallback = '/') {
   if (!next || typeof next !== 'string') return fallback;
   const trimmed = next.trim();
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.startsWith('/\\')) {
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !trimmed.includes('\\') &&
+    !trimmed.includes('://')
+  ) {
     return trimmed;
   }
   return fallback;

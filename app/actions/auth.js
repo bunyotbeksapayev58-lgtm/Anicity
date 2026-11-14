@@ -9,10 +9,25 @@ import { rateLimit, checkDistributedRateLimit } from '@/lib/rate-limit';
 
 const LOGIN_ERR = 'Login yoki parol noto‘g‘ri';
 
+function getSafeNext(next, fallback = '/') {
+  if (!next || typeof next !== 'string') return fallback;
+  const trimmed = next.trim();
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !trimmed.includes('\\') &&
+    !trimmed.includes('://')
+  ) {
+    return trimmed;
+  }
+  return fallback;
+}
+
 export async function login(prevState, formData) {
   const reqHeaders = await headers().catch(() => null);
   const supabase = await createClient();
-  const limit = await checkDistributedRateLimit('auth:login', reqHeaders, 5, 60, supabase);
+  const limit = await checkDistributedRateLimit('auth:login', reqHeaders, 15, 60, supabase);
   if (!limit.allowed) return { error: limit.error };
 
   const input = String(formData.get('login') || '').trim();
@@ -35,8 +50,7 @@ export async function login(prevState, formData) {
     email = found.user.email;
   }
 
-  const next = String(formData.get('next') || '/');
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = getSafeNext(formData.get('next'), '/');
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
@@ -74,8 +88,7 @@ export async function register(prevState, formData) {
     if (taken) return { error: 'Bu username band' };
   }
 
-  const next = String(formData.get('next') || '/');
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = getSafeNext(formData.get('next'), '/');
 
   const siteUrl = getSiteUrl();
   const emailRedirectTo = `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;

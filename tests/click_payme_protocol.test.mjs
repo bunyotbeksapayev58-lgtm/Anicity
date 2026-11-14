@@ -52,6 +52,7 @@ test('1. Click MD5 Signature Generation and Verification', () => {
 test('2. Click Prepare and Complete Lifecycle with Database Mock', async () => {
   const memoryDb = {
     users: [{ id: 'user-100', username: 'naruto' }],
+    plans: [{ id: 'plan-35k', name: 'VIP Standart', price_uzs: 35000, duration_days: 30, is_active: true }],
     transactions: [],
     subscriptions: [],
     auditLogs: [],
@@ -89,6 +90,13 @@ test('2. Click Prepare and Complete Lifecycle with Database Mock', async () => {
           if (table === 'subscription_transactions') {
             const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
             return { data: t || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            const p = (memoryDb.plans || []).find(x =>
+              (!currentQuery.filters.id || x.id === currentQuery.filters.id) &&
+              (!currentQuery.filters.price_uzs || Number(x.price_uzs) === Number(currentQuery.filters.price_uzs))
+            );
+            return { data: p || null, error: null };
           }
           return { data: null, error: null };
         },
@@ -145,6 +153,7 @@ test('3. Payme Basic Auth Verification', () => {
 test('4. Payme JSON-RPC 2.0 Full State Machine Lifecycle', async () => {
   const memoryDb = {
     users: [{ id: 'user-payme-1', username: 'lelouch' }],
+    plans: [{ id: 'plan-35k', name: 'VIP Standart', price_uzs: 35000, duration_days: 30, is_active: true }],
     transactions: [],
     subscriptions: [],
     auditLogs: [],
@@ -185,6 +194,13 @@ test('4. Payme JSON-RPC 2.0 Full State Machine Lifecycle', async () => {
           if (table === 'subscription_transactions') {
             const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
             return { data: t || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            const p = (memoryDb.plans || []).find(x =>
+              (!currentQuery.filters.id || x.id === currentQuery.filters.id) &&
+              (!currentQuery.filters.price_uzs || Number(x.price_uzs) === Number(currentQuery.filters.price_uzs))
+            );
+            return { data: p || null, error: null };
           }
           return { data: null, error: null };
         },
@@ -318,6 +334,13 @@ test('5. Payme Plan Validation & Rejection of Non-existent Plans', async () => {
           if (table === 'subscription_transactions') {
             const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
             return { data: t || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            const p = (memoryDb.plans || []).find(x =>
+              (!currentQuery.filters.id || x.id === currentQuery.filters.id) &&
+              (!currentQuery.filters.price_uzs || Number(x.price_uzs) === Number(currentQuery.filters.price_uzs))
+            );
+            return { data: p || null, error: null };
           }
           return { data: null, error: null };
         },
@@ -466,6 +489,13 @@ test('6. Click & Payme Cancellation Targets Only Associated Subscription (No Ove
           if (table === 'subscription_transactions') {
             const t = memoryDb.transactions.find(x => x.transaction_id === currentQuery.filters.transaction_id);
             return { data: t || null, error: null };
+          }
+          if (table === 'subscription_plans') {
+            const p = (memoryDb.plans || []).find(x =>
+              (!currentQuery.filters.id || x.id === currentQuery.filters.id) &&
+              (!currentQuery.filters.price_uzs || Number(x.price_uzs) === Number(currentQuery.filters.price_uzs))
+            );
+            return { data: p || null, error: null };
           }
           return { data: null, error: null };
         },
