@@ -21,7 +21,7 @@ if (fs.existsSync(envTestPath)) {
 }
 
 const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const BASE_URL = process.env.BASE_URL || 'https://anicity-git-feature-takeover-codex-integration-aniverse3.vercel.app';
+const BASE_URL = process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 const BYPASS_SECRET = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 const QA_ADMIN_EMAIL = process.env.QA_ADMIN_EMAIL || 'qa-admin@anicity.internal';
 const QA_ADMIN_PASSWORD = process.env.QA_ADMIN_PASSWORD;

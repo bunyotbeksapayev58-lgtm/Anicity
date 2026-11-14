@@ -1,8 +1,8 @@
 const BLOCKED_HOSTS = new Set([
   'anicity-app.vercel.app',
   'yozora-app.vercel.app',
-  'anicity-aniverse3.vercel.app',
-  'anicity-git-main-aniverse3.vercel.app',
+  'anicity-preview.vercel.app',
+  'anicity-git-main.vercel.app',
   'production-project.supabase.co',
 ]);
 const PRODUCTION_PROJECT_REF = 'production-project';

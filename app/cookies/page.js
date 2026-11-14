@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { siteConfig } from '@/lib/siteConfig';
 
 export const metadata = {
   title: 'Cookie Siyosati',
@@ -91,7 +92,7 @@ export default function CookiesPage() {
             4. Savollar va bog‘lanish
           </h2>
           <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px 20px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <p style={{ color: '#fff', margin: '4px 0' }}>💬 Telegram Yordam: <a href="https://t.me/anicity_admin" target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>@anicity_admin</a></p>
+            <p style={{ color: '#fff', margin: '4px 0' }}>💬 Telegram Yordam: <a href={siteConfig.telegramAdminUrl} target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>{siteConfig.telegramAdminHandle}</a></p>
           </div>
         </section>
 

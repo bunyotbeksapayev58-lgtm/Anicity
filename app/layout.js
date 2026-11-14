@@ -4,6 +4,7 @@ import Footer from '@/components/Footer';
 import CookieBanner from '@/components/CookieBanner';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { getSiteUrl } from '@/lib/siteUrl';
+import { siteConfig } from '@/lib/siteConfig';
 
 const siteUrl = getSiteUrl();
 
@@ -80,9 +81,9 @@ export default function RootLayout({ children }) {
         url: siteUrl,
         logo: `${siteUrl}/icon.png`,
         sameAs: [
-          'https://t.me/anicity_uz',
-          'https://instagram.com/anicity_uz',
-          'https://youtube.com/@anicity_uz',
+          siteConfig.telegramChannelUrl,
+          siteConfig.instagramUrl,
+          siteConfig.youtubeUrl,
         ],
       },
     ],

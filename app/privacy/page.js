@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { siteConfig } from '@/lib/siteConfig';
 
 export const metadata = {
   title: 'Maxfiylik Siyosati',
@@ -105,8 +106,8 @@ export default function PrivacyPage() {
             Maxfiylik siyosati yoki shaxsiy ma’lumotlaringiz xavfsizligi bo‘yicha savollaringiz bo‘lsa, rasmiy qo‘llab-quvvatlash xizmatimizga murojaat qiling:
           </p>
           <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px 20px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <p style={{ color: '#fff', margin: '4px 0' }}>💬 Telegram: <a href="https://t.me/anicity_admin" target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>@anicity_admin</a></p>
-            <p style={{ color: '#fff', margin: '4px 0' }}>📢 Rasmiy kanal: <a href="https://t.me/anicity_uz" target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>@anicity_uz</a></p>
+            <p style={{ color: '#fff', margin: '4px 0' }}>💬 Telegram: <a href={siteConfig.telegramAdminUrl} target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>{siteConfig.telegramAdminHandle}</a></p>
+            <p style={{ color: '#fff', margin: '4px 0' }}>📢 Rasmiy kanal: <a href={siteConfig.telegramChannelUrl} target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>{siteConfig.telegramChannelHandle}</a></p>
           </div>
         </section>
 

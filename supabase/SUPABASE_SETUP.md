@@ -1,4 +1,4 @@
-# Yozora — Supabase sozlash qo'llanmasi (YAGONA, ishonchli manba)
+# AniCity — Supabase sozlash qo'llanmasi (YAGONA, ishonchli manba)
 
 Bu hujjat **toza (bo'sh) Supabase Production loyihasi** uchun. Boshqa setup qo'llanma yo'q.
 Hamma qadamlar shu tartibda bajariladi.

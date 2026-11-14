@@ -26,8 +26,8 @@ assert.throws(() => requireLiveTestConfig({ target: true }, { ...base, ANICITY_Q
 for (const productionHost of [
   'anicity-app.vercel.app',
   'yozora-app.vercel.app',
-  'anicity-aniverse3.vercel.app',
-  'anicity-git-main-aniverse3.vercel.app',
+  'anicity-preview.vercel.app',
+  'anicity-git-main.vercel.app',
 ]) {
   assert.throws(() => requireLiveTestConfig({ target: true }, {
     ...base,

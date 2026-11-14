@@ -11,9 +11,14 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const returnUrl = searchParams.get('return_url') || '/profile';
+  const rawReturnUrl = searchParams.get('return_url') || '/profile';
 
-  return NextResponse.redirect(new URL(returnUrl, request.url));
+  // Safe relative redirect only (prevent open redirects)
+  const safeReturnUrl = (rawReturnUrl.startsWith('/') && !rawReturnUrl.startsWith('//') && !rawReturnUrl.includes('://'))
+    ? rawReturnUrl
+    : '/profile';
+
+  return NextResponse.redirect(new URL(safeReturnUrl, request.url));
 }
 
 export async function POST(request) {

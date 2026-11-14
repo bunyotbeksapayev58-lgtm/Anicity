@@ -640,7 +640,7 @@ export default async function AdminPage({ searchParams }) {
           <div className="card admin-pane" style={{ maxWidth: 800, margin: '0 auto' }}>
             <h2 className="admin-pane-title">📢 Telegram Integratsiyasi va Auto-Post</h2>
             <p className="hint">
-              Yangi qism yuklanganda Telegram kanalingizga (masalan: <b>@anicity_uz</b>) avtomatik go‘zal post chiqarish shabloni:
+              Yangi qism yuklanganda Telegram kanalingizga (masalan: <b>@kanalingiz</b>) avtomatik go‘zal post chiqarish shabloni:
             </p>
 
             <div className="telegram-post-preview">

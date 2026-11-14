@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { siteConfig } from '@/lib/siteConfig';
 
 export const metadata = {
   title: 'DMCA va Mualliflik Huquqi — Anicity',
@@ -46,9 +47,9 @@ export default function DmcaPage() {
         <div style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ fontWeight: 700, color: '#fff' }}>Rasmiy aloqa kanali:</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Telegram: @anicity_admin</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Telegram: {siteConfig.telegramAdminHandle}</div>
           </div>
-          <a href="https://t.me/anicity_admin" target="_blank" rel="noreferrer" className="btn primary sm">
+          <a href={siteConfig.telegramAdminUrl} target="_blank" rel="noreferrer" className="btn primary sm">
             Telegram orqali bog‘lanish
           </a>
         </div>

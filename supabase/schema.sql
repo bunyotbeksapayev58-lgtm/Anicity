@@ -221,7 +221,7 @@ create table if not exists public.admin_logs (
 
 -- ---------- Boshlang'ich sozlama (mavjud bo'lsa o'zgarmaydi) ----------
 insert into public.site_settings (key, value)
-values ('site', '{"name": "Yozora"}'::jsonb)
+values ('site', '{"name": "AniCity"}'::jsonb)
 on conflict (key) do nothing;
 
 

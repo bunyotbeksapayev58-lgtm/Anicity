@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Yozora migratsiyalarini STATIK tekshiradi (Postgres ishga tushirmaydi).
+"""AniCity migratsiyalarini STATIK tekshiradi (Postgres ishga tushirmaydi).
 
 Tekshiradi:
   - $$ (dollar-quote) va qavslar balansi

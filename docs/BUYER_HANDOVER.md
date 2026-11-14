@@ -101,7 +101,30 @@ Batafsil yo‘riqnoma [`docs/PAYMENTS.md`](PAYMENTS.md) faylida keltirilgan. Qis
 
 ---
 
-## 7. Yordam va Texnik Maslahat
+## 7. Brend va Ijtimoiy Tarmoqlarni Sozlash
+
+Saytdagi Telegram kanali, qo‘llab-quvvatlash bot/admini, Instagram va YouTube havolalarini o‘zgartirish juda oson:
+1. `.env.local` (yoki Vercel Environment Variables) faylida quyidagi o‘zgaruvchilarni o‘zingizning kanallaringizga moslang:
+   ```env
+   NEXT_PUBLIC_SITE_NAME=AniCity
+   NEXT_PUBLIC_TELEGRAM_ADMIN=anicity_admin
+   NEXT_PUBLIC_TELEGRAM_CHANNEL=anicity_uz
+   NEXT_PUBLIC_INSTAGRAM=anicity_uz
+   NEXT_PUBLIC_YOUTUBE=anicity_uz
+   ```
+2. Yoki to‘g‘ridan-to‘g‘ri `lib/siteConfig.js` faylida default qiymatlarni tahrirlang. Barcha footer, DMCA, Privacy, Terms va obuna to‘lov tugmalari avtomatik sizning akkauntingizga yo‘naltiriladi.
+
+---
+
+## 8. Huquqiy Eslatma va Javobgarlik Cheklovi (Legal Disclaimer)
+
+- Ushbu bitim va xarid **faqat dasturiy ta’minot (veb-platforma manba kodi, arxitekturasi va ma’lumotlar bazasi sxemasi)** ni o‘z ichiga oladi.
+- Platformaga yuklanadigan, translyatsiya qilinadigan yoki foydalanuvchilar tomonidan joylashtiriladigan har qanday media/anime kontentlari, mualliflik huquqlari va litsenziyalash talablari uchun to‘liq javobgarlik platformaning **yangi egasi (xaridor)** zimmasidadir.
+- Dastur kodida DMCA siyosati sahifasi (`/dmca`), maxfiylik siyosati (`/privacy`) va foydalanish shartlari (`/terms`) to‘liq integratsiya qilingan bo‘lib, xaridor o‘z faoliyatini mahalliy qonunchilikka muvofiq olib borishi tavsiya etiladi.
+
+---
+
+## 9. Yordam va Texnik Maslahat
 
 Loyiha bo‘yicha qo‘shimcha texnik tafsilotlar quyidagi hujjatlarda jamlangan:
 - [Admin Paneli Yo‘riqnomasi](ADMIN_GUIDE.md)

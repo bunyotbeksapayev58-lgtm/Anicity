@@ -49,8 +49,10 @@ export default function PlanCheckoutButtons({ plan, user, userProfile }) {
     }
   };
 
-  const telegramUrl = `https://t.me/anicity_admin?text=${encodeURIComponent(
-    `Salom, men Anicity platformasida “${plan.name}” (${Number(plan.price_uzs).toLocaleString()} UZS) obunasini faollashtirmoqchiman. Mening username: @${userProfile?.username || user.email}`
+  const telegramAdmin = process.env.NEXT_PUBLIC_TELEGRAM_ADMIN || 'anicity_admin';
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'AniCity';
+  const telegramUrl = `https://t.me/${telegramAdmin.replace(/^@/, '')}?text=${encodeURIComponent(
+    `Salom, men ${siteName} platformasida “${plan.name}” (${Number(plan.price_uzs).toLocaleString()} UZS) obunasini faollashtirmoqchiman. Mening username: @${userProfile?.username || user.email}`
   )}`;
 
   return (

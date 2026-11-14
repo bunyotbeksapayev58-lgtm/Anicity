@@ -3,7 +3,7 @@
 > **Full-Stack Anime Streaming, Community & Monetization Engine**  
 > Texnologiyalar: **Next.js 16 (App Router)** • **React 19** • **Supabase (PostgreSQL & Auth)** • **Vercel**
 
-- 🌐 **Jonli ko‘rish (Production):** [https://anicity-app.vercel.app](https://anicity-app.vercel.app)
+- 🌐 **Production domeni:** O‘zingizning shaxsiy domeningiz yoki Vercel manzilingiz (masalan: `https://sizning-saytingiz.uz`)
 - 📦 **Versiya:** 1.0.0 (Tijoriy sotuvga to‘liq tayyor nashr)
 - 🧪 **Avtomatlashgan testlar:** 27 ta to‘liq test to‘plami (100% muvaffaqiyatli)
 
@@ -77,7 +77,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```bash
 npm test
 ```
-*Barcha 25 ta regressiya testlari 100% muvaffaqiyatli yakunlanadi.*
+*Barcha 27 ta regressiya testlari 100% muvaffaqiyatli yakunlanadi.*
 
 ### 4. Dasturchi rejimida ishga tushirish
 ```bash
